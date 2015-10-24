@@ -1,11 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# Language GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module CPLEX ( CpxEnv
              , CpxLp
              , ObjSense(..)
              , Sense(..)
              , Bound(..)
+             , Type(..)
              , Row(..)
              , Col(..)
              , CpxSolution(..)
@@ -20,13 +21,16 @@ module CPLEX ( CpxEnv
                --, checkCopyLp
              , copyQuad
                --, checkCopyQuad
+             , copyMip
              , qpopt
              , lpopt
+             , mipopt
              , primopt
              , dualopt
              , siftopt
              , hybnetopt
              , getSolution
+             , getMIPSolution
                -- * change things
              , changeCoefList
              , changeObj
@@ -45,18 +49,22 @@ module CPLEX ( CpxEnv
              , withLp
              ) where
 
-import qualified Data.Map as M
-import Data.Vector.Storable ( Vector )
-import qualified Data.Vector.Storable as VS
+-- import           Control.Monad.Error
+import           Control.Monad.IO.Class
+-- import           Control.Monad.Trans
+-- import           Control.Monad.Trans.Maybe
+import qualified Data.Map                     as M
+import qualified Data.Vector                  as V
+import           Data.Vector.Storable         (Vector)
+import qualified Data.Vector.Storable         as VS
 import qualified Data.Vector.Storable.Mutable as VSM
-import qualified Data.Vector as V
-import Foreign.C
-import Foreign.Marshal
-import Foreign.Storable
-import Foreign.Ptr
+import           Foreign.C
+import           Foreign.Marshal
+import           Foreign.Ptr
+import           Foreign.Storable
 
-import CPLEX.Bindings
-import CPLEX.Param
+import           CPLEX.Bindings
+import           CPLEX.Param
 
 newtype CpxEnv = CpxEnv (Ptr CpxEnv')
 newtype CpxLp = CpxLp (Ptr CpxLp')
@@ -79,6 +87,11 @@ data Bound = L' Double
            | E' Double
            | U' Double
            deriving (Eq, Show)
+
+data Type = CPX_CONTINUOUS
+          | CPX_BINARY
+          | CPX_INTEGER
+          deriving (Eq, Show)
 
 cpx_INFBOUND :: CDouble
 cpx_INFBOUND = 1.1e20
@@ -171,12 +184,12 @@ getNumCols (CpxEnv env) (CpxLp lp) = fmap fromIntegral (c_CPXgetnumcols env lp)
 getNumRows :: CpxEnv -> CpxLp -> IO Int
 getNumRows (CpxEnv env) (CpxLp lp) = fmap fromIntegral (c_CPXgetnumrows env lp)
 
-data CpxSolution = CpxSolution { solObj :: Double
-                               , solStat :: String
-                               , solX :: Vector Double
-                               , solPi :: Vector Double
+data CpxSolution = CpxSolution { solObj   :: Double
+                               , solStat  :: String
+                               , solX     :: Vector Double
+                               , solPi    :: Vector Double
                                , solSlack :: Vector Double
-                               , solDj :: Vector Double
+                               , solDj    :: Vector Double
                                } deriving Show
 
 getSolution :: CpxEnv -> CpxLp -> IO (Either String CpxSolution)
@@ -211,6 +224,10 @@ getSolution env@(CpxEnv env') lp@(CpxLp lp') = do
   case status of
     0 -> do
       statString <- getStatString env (CpxRet lpstat)
+
+--      filename <- newCAString "lp.lp"
+--      status <- c_CPXwriteprob env' lp' filename nullPtr
+
       return $ Right $ CpxSolution { solObj = realToFrac objval
                                    , solStat = statString
                                    , solX = VS.map realToFrac x''
@@ -220,6 +237,60 @@ getSolution env@(CpxEnv env') lp@(CpxLp lp') = do
                                    }
     k -> fmap Left (getErrorString env (CpxRet k))
 
+getMIPSolution :: CpxEnv -> CpxLp -> IO (Either String CpxSolution)
+getMIPSolution env@(CpxEnv env') lp@(CpxLp lp') = do
+  status <- c_CPXchgprobtype env' lp' $ typeToInt CPX_PROB_MILP
+  case status of
+    0 -> do
+--      lpstat' <- malloc
+      objval' <- malloc
+
+      numrows <- getNumRows env lp
+      numcols <- getNumCols env lp
+      x <- VSM.new numcols
+--      p <- VSM.new numrows
+      slack <- VSM.new numrows
+--      dj <- VSM.new numcols
+
+--      status <- c_CPXgetstat env' lp'
+--      statString <- getStatString env (CpxRet lpstat)
+      let statString = ""
+
+      status <- c_CPXgetobjval env' lp' objval'
+      case status of
+        0 -> do
+          objval <- peek objval'
+          status <- VSM.unsafeWith x $ \x' ->
+            c_CPXgetx env' lp' x' 0 $ fromIntegral (numcols - 1)
+          case status of
+            0 -> do
+              x'' <- VS.freeze x
+              status <- VSM.unsafeWith slack $ \slack' ->
+                c_CPXgetslack env' lp' slack' 0 $ fromIntegral (numrows - 1)
+              case status of
+                0 -> do
+                  slack'' <- VS.freeze slack
+
+--                  filename <- newCAString "mip.lp"
+--                  status <- c_CPXwriteprob env' lp' filename nullPtr
+
+                  return $ Right $ CpxSolution { solObj = realToFrac objval
+                                               , solStat = statString
+                                               , solX = VS.map realToFrac x''
+                                               , solPi = VS.fromList $ take numcols [0.0,0.0..]
+                                               , solSlack = VS.map realToFrac slack''
+                                               , solDj = VS.fromList $ take numcols [0.0,0.0..]
+                                               }
+
+            k -> fmap Left (getErrorString env (CpxRet k))
+        k -> fmap Left (getErrorString env (CpxRet k))
+    k -> fmap Left (getErrorString env (CpxRet k))
+
+toCpxError :: CpxEnv -> CInt -> IO (Maybe String)
+toCpxError env 0 = return Nothing
+toCpxError env k = do
+  msg <- liftIO $ getErrorString env (CpxRet k)
+  return $ Just msg
 
 setIntParam :: CpxEnv -> CPX_PARAM -> CInt -> IO ()
 setIntParam env@(CpxEnv env') param val = do
@@ -352,7 +423,7 @@ copyLpWithFun copylpFun env@(CpxEnv env') (CpxLp lp) numcols numrows objsense ob
 
   case status of
     0 -> return Nothing
-    k -> fmap Just $ getErrorString env (CpxRet k)
+    k -> Just <$> getErrorString env (CpxRet k)
 
 type CopyQuad =
   Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CInt -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> IO CInt
@@ -380,6 +451,32 @@ copyQuadWithFun copyQuadFun env@(CpxEnv env') (CpxLp lp) matbeg matcnt matind ma
     k -> fmap Just $ getErrorString env (CpxRet k)
 
 
+copyMip :: CpxEnv -> CpxLp -> ObjSense -> V.Vector Double -> V.Vector Sense -> [(Row,Col,Double)] -> V.Vector (Maybe Double, Maybe Double) -> V.Vector Type -> IO (Maybe String)
+copyMip env@(CpxEnv env') lp@(CpxLp lp') objsense objcoeffs senseRhsRngVal aMat xbnds ctypes = do
+  status <- copyLpWithFun' c_CPXcopylp env lp objsense objcoeffs senseRhsRngVal aMat xbnds
+  case status of
+    Nothing -> do
+         status' <-
+           VS.unsafeWith ctypes' $ \ctypes'' ->
+           c_CPXcopyctype env' lp' ctypes''
+
+         case status' of
+           0 -> return Nothing
+           k' -> fmap Just $ getErrorString env (CpxRet k')
+
+
+    Just msg -> return $ Just msg --fmap Just $ getErrorString env (CpxRet k)
+
+  where
+    toCType :: Type -> CChar
+    toCType CPX_CONTINUOUS = castCharToCChar 'C'
+    toCType CPX_BINARY     = castCharToCChar 'B'
+    toCType CPX_INTEGER    = castCharToCChar 'I'
+
+    ctypes' :: VS.Vector CChar
+    ctypes' = VS.fromList $ map toCType $ V.toList ctypes
+
+
 withOptFun :: (Ptr CpxEnv' -> Ptr CpxLp' -> IO CInt) -> CpxEnv -> CpxLp -> IO (Maybe String)
 withOptFun optFun env@(CpxEnv env') (CpxLp lp') = do
   status <- optFun env' lp'
@@ -392,6 +489,9 @@ qpopt = withOptFun c_CPXqpopt
 
 lpopt :: CpxEnv -> CpxLp -> IO (Maybe String)
 lpopt = withOptFun c_CPXlpopt
+
+mipopt :: CpxEnv -> CpxLp -> IO (Maybe String)
+mipopt = withOptFun c_CPXmipopt
 
 primopt :: CpxEnv -> CpxLp -> IO (Maybe String)
 primopt = withOptFun c_CPXprimopt

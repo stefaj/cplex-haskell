@@ -1,8 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module CPLEX.Param ( CPX_PARAM(..)
+                   , CPX_PROB_TYPE(..)
                    , paramToInt
                    , intToParam
+                   , typeToInt
+                   , intToType
                    ) where
 
 data CPX_PARAM = CPX_PARAM_ADVIND
@@ -212,3 +215,35 @@ intToParam 1130 = Just CPX_PARAM_APIENCODING
 intToParam 1131 = Just CPX_PARAM_SOLUTIONTARGET
 intToParam 1132 = Just CPX_PARAM_CLONELOG
 intToParam _ = Nothing
+
+
+data CPX_PROB_TYPE = CPX_PROB_LP
+                   | CPX_PROB_MILP
+                   | CPX_PROB_FIXEDMILP
+                   | CPX_PROB_QP
+                   | CPX_PROB_MIQP
+                   | CPX_PROB_FIXEDMIQP
+                   | CPX_PROB_QCP
+                   | CPX_PROB_MIQCP
+                   deriving Show
+
+typeToInt :: Num a => CPX_PROB_TYPE -> a
+typeToInt CPX_PROB_LP        = 0
+typeToInt CPX_PROB_MILP      = 1
+typeToInt CPX_PROB_FIXEDMILP = 3
+typeToInt CPX_PROB_QP        = 5
+typeToInt CPX_PROB_MIQP      = 7
+typeToInt CPX_PROB_FIXEDMIQP = 8
+typeToInt CPX_PROB_QCP       = 10
+typeToInt CPX_PROB_MIQCP     = 11
+
+intToType :: (Eq a, Num a) => a -> Maybe CPX_PROB_TYPE
+intToType  0 = Just CPX_PROB_LP
+intToType  1 = Just CPX_PROB_MILP
+intToType  3 = Just CPX_PROB_FIXEDMILP
+intToType  5 = Just CPX_PROB_QP
+intToType  7 = Just CPX_PROB_MIQP
+intToType  8 = Just CPX_PROB_FIXEDMIQP
+intToType 10 = Just CPX_PROB_QCP
+intToType 11 = Just CPX_PROB_MIQCP
+intToType  _ = Nothing

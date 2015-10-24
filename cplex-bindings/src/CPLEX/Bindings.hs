@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE EmptyDataDecls           #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE EmptyDataDecls #-}
 
 module CPLEX.Bindings ( CpxEnv'
                       , CpxLp'
@@ -19,27 +19,35 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXchgobj
                       , c_CPXchgsense
                       , c_CPXchgqpcoef
+                      , c_CPXchgprobtype
+                      , c_CPXcopyctype
                       , c_CPXgeterrorstring
                       , c_CPXgetstatstring
                       , c_CPXsetintparam
                       , c_CPXsetdblparam
                       , c_CPXgetnumcols
                       , c_CPXgetnumrows
+                      , c_CPXgetobjval
+                      , c_CPXgetx
+                      , c_CPXgetstat
+                      , c_CPXgetslack
                       , c_CPXcopylp
 --                      , c_CPXcheckcopylp
                       , c_CPXcopyquad
 --                      , c_CPXcheckcopyquad
                       , c_CPXqpopt
                       , c_CPXlpopt
+                      , c_CPXmipopt
                       , c_CPXprimopt
                       , c_CPXdualopt
                       , c_CPXhybnetopt
                       , c_CPXsiftopt
                       , c_CPXsolution
+                      , c_CPXwriteprob
                       ) where
 
-import Foreign.C ( CInt(..), CDouble(..), CChar(..) )
-import Foreign.Ptr ( Ptr )
+import           Foreign.C   (CChar (..), CDouble (..), CInt (..))
+import           Foreign.Ptr (Ptr)
 
 data CpxEnv'
 data CpxLp'
@@ -85,6 +93,12 @@ foreign import ccall unsafe "cplex.h CPXchgsense" c_CPXchgsense ::
 foreign import ccall unsafe "cplex.h CPXchgqpcoef" c_CPXchgqpcoef ::
   Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> CInt -> CDouble -> IO CInt
 
+foreign import ccall unsafe "cplex.h CPXchgprobtype" c_CPXchgprobtype ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> IO CInt
+
+foreign import ccall unsafe "cplex.h CPXcopyctype" c_CPXcopyctype ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CChar -> IO CInt
+
 foreign import ccall unsafe "cplex.h CPXgeterrorstring" c_CPXgeterrorstring ::
   Ptr CpxEnv' -> CInt -> Ptr CChar -> IO (Ptr CChar)
 
@@ -102,6 +116,18 @@ foreign import ccall unsafe "cplex.h CPXgetnumcols" c_CPXgetnumcols ::
 
 foreign import ccall unsafe "cplex.h CPXgetnumrows" c_CPXgetnumrows ::
   Ptr CpxEnv' -> Ptr CpxLp' -> IO CInt
+
+foreign import ccall unsafe "cplex.h CPXgetobjval" c_CPXgetobjval ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> IO CInt
+
+foreign import ccall unsafe "cplex.h CPXgetx" c_CPXgetx ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> CInt -> CInt -> IO CInt
+
+foreign import ccall unsafe "cplex.h CPXgetstat" c_CPXgetstat ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> IO CInt
+
+foreign import ccall unsafe "cplex.h CPXgetslack" c_CPXgetslack ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> CInt -> CInt -> IO CInt
 
 foreign import ccall unsafe "cplex.h CPXcopylp" c_CPXcopylp ::
   Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> -- (CPXCENVptr env, CpxLp'ptr lp, int numcols,
@@ -143,6 +169,9 @@ foreign import ccall unsafe "cplex.h CPXqpopt" c_CPXqpopt ::
 foreign import ccall unsafe "cplex.h CPXlpopt" c_CPXlpopt ::
   Ptr CpxEnv' -> Ptr CpxLp' -> IO CInt
 
+foreign import ccall unsafe "cplex.h CPXmipopt" c_CPXmipopt ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> IO CInt
+
 foreign import ccall unsafe "cplex.h CPXprimopt" c_CPXprimopt ::
   Ptr CpxEnv' -> Ptr CpxLp' -> IO CInt
 
@@ -159,3 +188,6 @@ foreign import ccall unsafe "cplex.h CPXsolution" c_CPXsolution ::
   Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CInt ->       -- (CPXCENVptr env, CPXCLPptr lp, int *lpstat_p,
   Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> --  double *objval_p, double *x, double *pi,
   Ptr CDouble -> Ptr CDouble -> IO CInt        --  double *slack, double *dj);
+
+foreign import ccall unsafe "cplex.h CPXwriteprob" c_CPXwriteprob ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CChar -> Ptr CChar -> IO CInt
