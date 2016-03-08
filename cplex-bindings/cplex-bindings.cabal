@@ -21,17 +21,13 @@ Library
   hs-source-dirs: src
   
 --  Extra-lib-dirs:  /opt/ibm/ILOG/CPLEX_Studio124/cplex/bin/x86-64_sles10_4.1/
-  if os(OSX)
-    --Extra-lib-dirs:  /Users/ghorn/Applications/IBM/ILOG/CPLEX_Studio1251/cplex/bin/x86-64_osx
-    Extra-lib-dirs:  /Users/ghorn/Applications/IBM/ILOG/CPLEX_Studio1251/cplex/lib/x86-64_osx/static_pic
-    Extra-libraries: cplex
 
   if os(linux)
-    Extra-lib-dirs:  /opt/ibm/ILOG/CPLEX_Studio1251/cplex/bin/x86-64_sles10_4.1
-    Extra-libraries: cplex1251
---  Include-dirs:    /opt/ibm/ILOG/CPLEX_Studio124/cplex/include
+    Extra-lib-dirs:  /opt/ibm/ILOG/CPLEX_Studio_Community1263/cplex/lib/x86-64_linux/static_pic/
+    Extra-libraries: cplex
+    Include-dirs:    /opt/ibm/ILOG/CPLEX_Studio_Community1263/cplex/include/
 --  Ghc-options: -pgml g++
---  cc-options: -Wall -Wextra
+    cc-options: -Wall -Wextra
 
 --  C-sources:         cbits/my_cplex.c
 --  Install-includes:  cbits/my_cplex.h
