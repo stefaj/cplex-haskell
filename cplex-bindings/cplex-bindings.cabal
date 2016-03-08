@@ -24,7 +24,7 @@ Library
 
   if os(linux)
     Extra-lib-dirs:  /opt/ibm/ILOG/CPLEX_Studio_Community1263/cplex/lib/x86-64_linux/static_pic/
-    Extra-libraries: cplex
+    Extra-libraries: cplex, m, pthread
     Include-dirs:    /opt/ibm/ILOG/CPLEX_Studio_Community1263/cplex/include/
 --  Ghc-options: -pgml g++
     cc-options: -Wall -Wextra

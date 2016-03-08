@@ -3,7 +3,6 @@
 module CPLEX.Param ( CPX_PARAM(..)
                    , CPX_PROB_TYPE(..)
                    , paramToInt
-                   , intToParam
                    , typeToInt
                    , intToType
                    ) where
@@ -145,77 +144,6 @@ paramToInt CPX_PARAM_FILEENCODING      = 1129
 paramToInt CPX_PARAM_APIENCODING       = 1130
 paramToInt CPX_PARAM_SOLUTIONTARGET    = 1131
 paramToInt CPX_PARAM_CLONELOG          = 1132
-
-intToParam :: (Eq a, Num a) => a -> Maybe CPX_PARAM
-intToParam 1001 = Just CPX_PARAM_ADVIND
-intToParam 1002 = Just CPX_PARAM_AGGFILL
-intToParam 1003 = Just CPX_PARAM_AGGIND
-intToParam 1004 = Just CPX_PARAM_BASINTERVAL
-intToParam 1005 = Just CPX_PARAM_CFILEMUL
-intToParam 1006 = Just CPX_PARAM_CLOCKTYPE
-intToParam 1007 = Just CPX_PARAM_CRAIND
-intToParam 1008 = Just CPX_PARAM_DEPIND
-intToParam 1009 = Just CPX_PARAM_DPRIIND
-intToParam 1010 = Just CPX_PARAM_PRICELIM
-intToParam 1013 = Just CPX_PARAM_EPMRK
-intToParam 1014 = Just CPX_PARAM_EPOPT
-intToParam 1015 = Just CPX_PARAM_EPPER
-intToParam 1016 = Just CPX_PARAM_EPRHS
-intToParam 1017 = Just CPX_PARAM_FASTMIP
-intToParam 1019 = Just CPX_PARAM_SIMDISPLAY
-intToParam 1020 = Just CPX_PARAM_ITLIM
-intToParam 1021 = Just CPX_PARAM_ROWREADLIM
-intToParam 1022 = Just CPX_PARAM_NETFIND
-intToParam 1023 = Just CPX_PARAM_COLREADLIM
-intToParam 1024 = Just CPX_PARAM_NZREADLIM
-intToParam 1025 = Just CPX_PARAM_OBJLLIM
-intToParam 1026 = Just CPX_PARAM_OBJULIM
-intToParam 1027 = Just CPX_PARAM_PERIND
-intToParam 1028 = Just CPX_PARAM_PERLIM
-intToParam 1029 = Just CPX_PARAM_PPRIIND
-intToParam 1030 = Just CPX_PARAM_PREIND
-intToParam 1031 = Just CPX_PARAM_REINV
-intToParam 1032 = Just CPX_PARAM_REVERSEIND
-intToParam 1033 = Just CPX_PARAM_RFILEMUL
-intToParam 1034 = Just CPX_PARAM_SCAIND
-intToParam 1035 = Just CPX_PARAM_SCRIND
-intToParam 1037 = Just CPX_PARAM_SINGLIM
-intToParam 1038 = Just CPX_PARAM_SINGTOL
-intToParam 1039 = Just CPX_PARAM_TILIM
-intToParam 1041 = Just CPX_PARAM_XXXIND
-intToParam 1044 = Just CPX_PARAM_PREDUAL
-intToParam 1049 = Just CPX_PARAM_EPOPT_H
-intToParam 1050 = Just CPX_PARAM_EPRHS_H
-intToParam 1052 = Just CPX_PARAM_PREPASS
-intToParam 1056 = Just CPX_PARAM_DATACHECK
-intToParam 1057 = Just CPX_PARAM_REDUCE
-intToParam 1058 = Just CPX_PARAM_PRELINEAR
-intToParam 1062 = Just CPX_PARAM_LPMETHOD
-intToParam 1063 = Just CPX_PARAM_QPMETHOD
-intToParam 1064 = Just CPX_PARAM_WORKDIR
-intToParam 1065 = Just CPX_PARAM_WORKMEM
-intToParam 1067 = Just CPX_PARAM_THREADS
-intToParam 1074 = Just CPX_PARAM_CONFLICTDISPLAY
-intToParam 1076 = Just CPX_PARAM_SIFTDISPLAY
-intToParam 1077 = Just CPX_PARAM_SIFTALG
-intToParam 1078 = Just CPX_PARAM_SIFTITLIM
-intToParam 1081 = Just CPX_PARAM_MPSLONGNUM
-intToParam 1082 = Just CPX_PARAM_MEMORYEMPHASIS
-intToParam 1083 = Just CPX_PARAM_NUMERICALEMPHASIS
-intToParam 1084 = Just CPX_PARAM_FEASOPTMODE
-intToParam 1109 = Just CPX_PARAM_PARALLELMODE
-intToParam 1110 = Just CPX_PARAM_TUNINGMEASURE
-intToParam 1111 = Just CPX_PARAM_TUNINGREPEAT
-intToParam 1112 = Just CPX_PARAM_TUNINGTILIM
-intToParam 1113 = Just CPX_PARAM_TUNINGDISPLAY
-intToParam 1114 = Just CPX_PARAM_WRITELEVEL
-intToParam 1127 = Just CPX_PARAM_DETTILIM
-intToParam 1129 = Just CPX_PARAM_FILEENCODING
-intToParam 1130 = Just CPX_PARAM_APIENCODING
-intToParam 1131 = Just CPX_PARAM_SOLUTIONTARGET
-intToParam 1132 = Just CPX_PARAM_CLONELOG
-intToParam _ = Nothing
-
 
 data CPX_PROB_TYPE = CPX_PROB_LP
                    | CPX_PROB_MILP
