@@ -44,10 +44,14 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXsiftopt
                       , c_CPXsolution
                       , c_CPXwriteprob
+                      , c_CPXaddusercuts
+                      , CIncumbentCallback
+                      , c_createIncumbentCallbackPtr
+                      , c_CPXsetincumbentcallbackfunc
                       ) where
 
 import           Foreign.C   (CChar (..), CDouble (..), CInt (..))
-import           Foreign.Ptr (Ptr)
+import           Foreign.Ptr (Ptr, FunPtr)
 
 data CpxEnv'
 data CpxLp'
@@ -191,3 +195,44 @@ foreign import ccall unsafe "cplex.h CPXsolution" c_CPXsolution ::
 
 foreign import ccall unsafe "cplex.h CPXwriteprob" c_CPXwriteprob ::
   Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CChar -> Ptr CChar -> IO CInt
+
+
+--new
+-- http://www.ibm.com/support/knowledgecenter/SSSA5P_12.2.0/ilog.odms.cplex.help/html/refcallablelibrary/html/functions/CPXaddusercuts.html?lang=en
+foreign import ccall unsafe "cplex.h CPXaddusercuts" c_CPXaddusercuts ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> Ptr (Ptr CChar) -> IO CInt
+  -- int CPXaddusercuts(CPXCENVptr env, CPXLPptr lp, int rcnt, int nzcnt, const double * rhs, const char * sense, const int * rmatbeg, const int * rmatind, const double * rmatval, char ** rowname)
+  -- int CPXaddrows (CPXENVptr env,
+  --               CPXLPptr lp,
+  --               int ccnt,
+  --               int rcnt,
+  --               int nzcnt,
+  --               double *rhs,
+  --               char *sense,
+  --               int *rmatbeg,
+  --               int *rmatind,
+  --               double *rmatval,
+  --               char **colname,
+  --               char **rowname);
+
+
+foreign import ccall unsafe "cplex.h CPXsetincumbentcallbackfunc" c_CPXsetincumbentcallbackfunc::
+    Ptr CpxEnv' -> FunPtr CIncumbentCallback -> Ptr () -> CInt
+
+
+    -- int callback (CPXCENVptr env,
+    --               void *cbdata,
+    --               int wherefrom,
+    --               void *cbhandle,
+    --               double objval,
+    --               double *x,
+    --               int *isfeas_p,
+    --               int *useraction_p);
+
+type CIncumbentCallback = Ptr CpxEnv' -> Ptr () -> CInt -> Ptr () -> CDouble -> Ptr CInt -> Ptr Int -> Ptr Int -> IO Int
+
+--foreign import ccal unsafe "wrapper" c_createIncumbentCallbackPtr :: (CIncumbentCallback) -> IO (FunPtr (CIncumbentCallback))
+
+foreign import ccall "wrapper"
+  c_createIncumbentCallbackPtr :: CIncumbentCallback -> IO (FunPtr (CIncumbentCallback))
+--int CPXsetincumbentcallbackfunc(CPXENVptr env, int(*)(CALLBACK_INCUMBENT_ARGS) incumbentcallback, void * cbhandle)

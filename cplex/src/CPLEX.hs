@@ -614,6 +614,39 @@ changeQpCoef env@(CpxEnv env') (CpxLp lp') (Row row) (Col col) val = do
     k -> fmap Just $ getErrorString env (CpxRet k)
 
 
+--------------------------------------------------
+
+addCuts :: CpxEnv -> CpxLp -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
+addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
+    status <-
+        VS.unsafeWith rhs $ \rows'' ->
+        VS.unsafeWith sense $ \senses'' ->
+        VS.unsafeWith matbeg $ \matbeg'' ->
+        VS.unsafeWith matind $ \matind'' ->
+        VS.unsafeWith matval $ \matval'' ->
+
+      c_CPXaddusercuts env' lp' (fromIntegral numrows) (fromIntegral nzcnt)
+                rows'' senses'' matbeg'' matind'' matval'' nullPtr
+    case status of
+      0 -> return Nothing
+      k -> fmap Just $ getErrorString env (CpxRet k)
+  where
+    numrows = V.length senseRhsRngVal
+
+    toRhs :: Sense -> (CChar, CDouble, CDouble)
+    toRhs (L x)   = (castCharToCChar 'L', realToFrac x,               0)
+    toRhs (E x)   = (castCharToCChar 'E', realToFrac x,               0)
+    toRhs (G x)   = (castCharToCChar 'G', realToFrac x,               0)
+    toRhs (R l u) = (castCharToCChar 'R', realToFrac l, realToFrac (u-l))
+
+    (sense', rhs', rngval') = V.unzip3 $ V.map toRhs senseRhsRngVal
+    sense  = VS.fromList $ V.toList sense'
+    rhs    = VS.fromList $ V.toList rhs'
+
+    (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
+
+
+
 -------------------------------------------------
 
 withEnv :: (CpxEnv -> IO a) -> IO a
