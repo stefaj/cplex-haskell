@@ -67,6 +67,18 @@ foreign import ccall unsafe "cplex.h CPXfreeprob" c_CPXfreeprob ::
 foreign import ccall unsafe "cplex.h CPXnewrows" c_CPXnewrows ::
   Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CDouble -> Ptr (Ptr CChar) -> IO CInt
 
+  -- int CPXaddrows (CPXENVptr env,
+  --                 CPXLPptr lp,
+  --                 int ccnt,
+  --                 int rcnt,
+  --                 int nzcnt,
+  --                 double *rhs,
+  --                 char *sense,
+  --                 int *rmatbeg,
+  --                 int *rmatind,
+  --                 double *rmatval,
+  --                 char **colname,
+  --                 char **rowname);
 foreign import ccall unsafe "cplex.h CPXaddrows" c_CPXaddrows ::
   Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> CInt -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> Ptr (Ptr CChar) -> Ptr (Ptr CChar) -> IO CInt
 
@@ -200,24 +212,16 @@ foreign import ccall unsafe "cplex.h CPXwriteprob" c_CPXwriteprob ::
 --new
 -- http://www.ibm.com/support/knowledgecenter/SSSA5P_12.2.0/ilog.odms.cplex.help/html/refcallablelibrary/html/functions/CPXaddusercuts.html?lang=en
 foreign import ccall unsafe "cplex.h CPXaddusercuts" c_CPXaddusercuts ::
-  Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> CInt -> Ptr CDouble -> Ptr CChar -> Ptr CInt -> Ptr CInt -> Ptr CDouble -> Ptr (Ptr CChar) -> IO CInt
+  Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> -- env, lp, rcnt
+  CInt -> Ptr CDouble -> Ptr CChar -> -- nzcnt, rhs, sense
+  Ptr CInt -> Ptr CInt -> Ptr CDouble -> --matbeg, matbind, rmatval
+  Ptr (Ptr CChar) -> -- rowname
+  IO CInt
   -- int CPXaddusercuts(CPXCENVptr env, CPXLPptr lp, int rcnt, int nzcnt, const double * rhs, const char * sense, const int * rmatbeg, const int * rmatind, const double * rmatval, char ** rowname)
-  -- int CPXaddrows (CPXENVptr env,
-  --               CPXLPptr lp,
-  --               int ccnt,
-  --               int rcnt,
-  --               int nzcnt,
-  --               double *rhs,
-  --               char *sense,
-  --               int *rmatbeg,
-  --               int *rmatind,
-  --               double *rmatval,
-  --               char **colname,
-  --               char **rowname);
 
 
 foreign import ccall unsafe "cplex.h CPXsetincumbentcallbackfunc" c_CPXsetincumbentcallbackfunc::
-    Ptr CpxEnv' -> FunPtr CIncumbentCallback -> Ptr () -> CInt
+    Ptr CpxEnv' -> FunPtr CIncumbentCallback -> Ptr () -> IO CInt
 
 
     -- int callback (CPXCENVptr env,

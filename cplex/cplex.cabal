@@ -1,12 +1,12 @@
 name:                cplex
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            high-level CPLEX interface
 -- description:
 license:             BSD3
 license-file:        LICENSE
 Copyright:           (c) Greg Horn 2012-2013
 Author:              Greg Horn
-Maintainer:          gregmainland@gmail.com
+Maintainer:          stefanjacholke@gmail.com@gmail.com
 Stability:           Experimental
 build-type:          Simple
 cabal-version:       >=1.8
@@ -17,7 +17,7 @@ library
   -- other-modules:
   Build-depends:     base >= 4 && < 5
                    , containers
-                   , cplex-bindings
+                   , cplex-bindings >= 0.2
                    , mtl
                    , transformers >= 0.4.2.0
                    , vector

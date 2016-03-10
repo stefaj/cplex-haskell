@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module CPLEX ( CpxEnv
+module CPLEX ( CpxEnv(..)
              , CpxLp
              , ObjSense(..)
              , Sense(..)
@@ -44,6 +44,9 @@ module CPLEX ( CpxEnv
              , getNumRows
              , getErrorString
              , getStatString
+             , setIncumbentCallback
+             , addCuts
+             , addRows
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -637,7 +640,6 @@ addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
     toRhs (L x)   = (castCharToCChar 'L', realToFrac x,               0)
     toRhs (E x)   = (castCharToCChar 'E', realToFrac x,               0)
     toRhs (G x)   = (castCharToCChar 'G', realToFrac x,               0)
-    toRhs (R l u) = (castCharToCChar 'R', realToFrac l, realToFrac (u-l))
 
     (sense', rhs', rngval') = V.unzip3 $ V.map toRhs senseRhsRngVal
     sense  = VS.fromList $ V.toList sense'
@@ -646,6 +648,41 @@ addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
     (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
 
 
+addRows :: CpxEnv -> CpxLp -> Int -> Int -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
+addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
+    status <-
+        VS.unsafeWith rhs $ \rows'' ->
+        VS.unsafeWith sense $ \senses'' ->
+        VS.unsafeWith matbeg $ \matbeg'' ->
+        VS.unsafeWith matind $ \matind'' ->
+        VS.unsafeWith matval $ \matval'' ->
+
+      c_CPXaddrows env' lp' (fromIntegral ccnt) (fromIntegral rcnt) (fromIntegral nzcnt)
+                rows'' senses'' matbeg'' matind'' matval'' nullPtr nullPtr
+    case status of
+      0 -> return Nothing
+      k -> fmap Just $ getErrorString env (CpxRet k)
+  where
+    numrows = V.length senseRhsRngVal
+
+    toRhs :: Sense -> (CChar, CDouble, CDouble)
+    toRhs (L x)   = (castCharToCChar 'L', realToFrac x,               0)
+    toRhs (E x)   = (castCharToCChar 'E', realToFrac x,               0)
+    toRhs (G x)   = (castCharToCChar 'G', realToFrac x,               0)
+
+    (sense', rhs', rngval') = V.unzip3 $ V.map toRhs senseRhsRngVal
+    sense  = VS.fromList $ V.toList sense'
+    rhs    = VS.fromList $ V.toList rhs'
+
+    (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
+
+setIncumbentCallback :: CpxEnv -> CIncumbentCallback -> IO (Maybe String)
+setIncumbentCallback env@(CpxEnv env') callback = do
+    ptr <- c_createIncumbentCallbackPtr callback
+    status <- c_CPXsetincumbentcallbackfunc env' ptr nullPtr
+    case status of
+      0 -> return Nothing
+      k -> fmap Just $ getErrorString env (CpxRet k)
 
 -------------------------------------------------
 
