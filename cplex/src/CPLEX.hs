@@ -47,6 +47,7 @@ module CPLEX ( CpxEnv(..)
              , setIncumbentCallback
              , addCuts
              , addRows
+             , addLazyConstraints
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -195,7 +196,7 @@ data CpxSolution = CpxSolution { solObj   :: Double
                                , solDj    :: Vector Double
                                } deriving Show
 
-getSolution :: CpxEnv -> CpxLp -> IO (Either String CpxSolution)
+getSolution :: CpxEnv -> CpxLp -> IO (Either String  CpxSolution)
 getSolution env@(CpxEnv env') lp@(CpxLp lp') = do
   lpstat' <- malloc
   objval' <- malloc
@@ -321,6 +322,19 @@ instance Show Row where
   show = show . unRow
 instance Show Col where
   show = show . unCol
+
+-- for use with the adding of rows, cuts or lazy constraints
+toColForm' :: [(Row,Col,Double)] -> (Vector CInt, Vector CInt, Vector CDouble)
+toColForm' amat = (VS.fromList matbeg, VS.fromList matind, VS.fromList matval)
+    where
+        cols = map (\(Row a, Col b, v) -> b) amat
+        rows = map (\(Row a, _, _) -> a) amat
+        numRows = (maximum rows) - (minimum rows) + 1
+        numCols = (maximum cols) - (minimum cols) + 1
+        rows' = map (\q -> filter (\(Row a, Col b, v) -> a== q ) amat) [minimum rows..maximum rows]
+        matval = map (\(Row a, Col b, v) -> realToFrac v) $ concat rows'
+        matind = map (\(Row a, Col b, v) -> fromIntegral b) $ concat rows'
+        matbeg = map (fromIntegral . (*numCols)) [0..numRows-1]
 
 toColForm :: Int -> [(Row,Col,Double)] -> (Vector CInt, Vector CInt, Vector CInt, Vector CDouble)
 toColForm numcols amat = (matbeg, matcnt, matind, matval)
@@ -645,7 +659,39 @@ addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
     sense  = VS.fromList $ V.toList sense'
     rhs    = VS.fromList $ V.toList rhs'
 
-    (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
+    (matbeg, matind, matval) = toColForm' aMat
+
+
+addLazyConstraints :: CpxEnv -> CpxLp -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
+addLazyConstraints env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
+        --putStrLn $ "c_CPXaddlazyconstraints: " ++ (show numrows) ++ " " ++ (show nzcnt) ++ " " ++ (show rhs) ++ " " ++ (show sense) ++ " " ++ (show matbeg) ++ " " ++ (show matind) ++ " " ++ (show matval)
+        putStrLn $ show (matbeg, matind, matval)
+        putStrLn $ "test: " ++ (show $ toColForm' aMat)
+        status <-
+            VS.unsafeWith rhs $ \rows'' ->
+            VS.unsafeWith sense $ \senses'' ->
+            VS.unsafeWith matbeg $ \matbeg'' ->
+            VS.unsafeWith matind $ \matind'' ->
+            VS.unsafeWith matval $ \matval'' ->
+
+          c_CPXaddlazyconstraints env' lp' (fromIntegral numrows) (fromIntegral nzcnt)
+                    rows'' senses'' matbeg'' matind'' matval'' nullPtr
+        case status of
+          0 -> return Nothing
+          k -> fmap Just $ getErrorString env (CpxRet k)
+      where
+        numrows = V.length senseRhsRngVal
+
+        toRhs :: Sense -> (CChar, CDouble, CDouble)
+        toRhs (L x)   = (castCharToCChar 'L', realToFrac x,               0)
+        toRhs (E x)   = (castCharToCChar 'E', realToFrac x,               0)
+        toRhs (G x)   = (castCharToCChar 'G', realToFrac x,               0)
+
+        (sense', rhs', rngval') = V.unzip3 $ V.map toRhs senseRhsRngVal
+        sense  = VS.fromList $ V.toList sense'
+        rhs    = VS.fromList $ V.toList rhs'
+        --matbeg = VS.fromList $ replicate numrows 0
+        (matbeg, matind, matval) = toColForm' aMat
 
 
 addRows :: CpxEnv -> CpxLp -> Int -> Int -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
@@ -676,6 +722,7 @@ addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
 
     (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
 
+{-# NOINLINE setIncumbentCallback #-}
 setIncumbentCallback :: CpxEnv -> CIncumbentCallback -> IO (Maybe String)
 setIncumbentCallback env@(CpxEnv env') callback = do
     ptr <- c_createIncumbentCallbackPtr callback
@@ -683,7 +730,6 @@ setIncumbentCallback env@(CpxEnv env') callback = do
     case status of
       0 -> return Nothing
       k -> fmap Just $ getErrorString env (CpxRet k)
-
 -------------------------------------------------
 
 withEnv :: (CpxEnv -> IO a) -> IO a
