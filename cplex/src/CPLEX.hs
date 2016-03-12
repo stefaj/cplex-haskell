@@ -44,6 +44,7 @@ module CPLEX ( CpxEnv(..)
              , getNumRows
              , getErrorString
              , getStatString
+             -- MIP
              , setIncumbentCallback
              , setCutCallback
              , addCuts
@@ -51,6 +52,7 @@ module CPLEX ( CpxEnv(..)
              , addLazyConstraints
              , getCallbackLP
              , getCallbackNodeX
+             , addCutFromCallback
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -73,6 +75,7 @@ import           Foreign.Storable
 
 import           CPLEX.Bindings
 import           CPLEX.Param
+import           Data.Char(ord)
 
 newtype CpxEnv = CpxEnv (Ptr CpxEnv')
 newtype CpxLp = CpxLp (Ptr CpxLp')
@@ -695,12 +698,12 @@ addLazyConstraints env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
         (matbeg, matind, matval) = toColForm' aMat
 
 
-addCutFromCallback :: CpxEnv -> Ptr () -> CInt -> CInt -> CDouble -> CInt -> [(Col,Double)] -> CPX_CUT_TYPE -> IO (Maybe String)
-addCutFromCallback env@(CpxEnv env') cbdata wherefrom nzcnt rhs sense aMat purgable  = do
+addCutFromCallback :: CpxEnv -> Ptr () -> CInt -> CInt -> Sense -> [(Col,Double)] -> CPX_CUT_TYPE -> IO (Maybe String)
+addCutFromCallback env@(CpxEnv env') cbdata wherefrom nzcnt sense aMat purgable  = do
         status <-
             VS.unsafeWith cutind $ \ind ->
             VS.unsafeWith cutvals $ \vals ->
-          c_CPXcutcallbackadd env' cbdata wherefrom nzcnt rhs sense ind vals purgable'
+          c_CPXcutcallbackadd env' cbdata wherefrom nzcnt rhs' sense' ind vals purgable'
         case status of
           0 -> return Nothing
           k -> fmap Just $ getErrorString env (CpxRet k)
@@ -708,6 +711,11 @@ addCutFromCallback env@(CpxEnv env') cbdata wherefrom nzcnt rhs sense aMat purga
         cutind = VS.fromList $ map (\(Col a, v) -> fromIntegral a) aMat
         cutvals = VS.fromList $ map (\(Col a, v) -> realToFrac v) aMat
         purgable' = cutToInt purgable
+        senseToInt (L x) = (fromIntegral $ ord 'L', realToFrac x)
+        senseToInt (G x) = (fromIntegral $ ord 'G', realToFrac x)
+        senseToInt (E x) = (fromIntegral $ ord 'E', realToFrac x)
+        (sense', rhs') = senseToInt sense
+
 
 addRows :: CpxEnv -> CpxLp -> Int -> Int -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
 addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
