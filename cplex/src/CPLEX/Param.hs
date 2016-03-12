@@ -2,10 +2,16 @@
 
 module CPLEX.Param ( CPX_PARAM(..)
                    , CPX_PROB_TYPE(..)
+                   , CPX_CUT_TYPE(..)
+                   , cutToInt
                    , paramToInt
                    , typeToInt
                    , intToType
                    ) where
+
+import           Foreign.C(CInt)
+
+
 
 data CPX_PARAM = CPX_PARAM_ADVIND
                | CPX_PARAM_AGGFILL
@@ -166,6 +172,15 @@ typeToInt CPX_PROB_MIQP      = 7
 typeToInt CPX_PROB_FIXEDMIQP = 8
 typeToInt CPX_PROB_QCP       = 10
 typeToInt CPX_PROB_MIQCP     = 11
+
+data CPX_CUT_TYPE = CPX_USECUT_FORCE
+                | CPX_USECUT_PURGE
+                | CPX_USECUT_FILTER
+
+cutToInt :: CPX_CUT_TYPE -> CInt
+cutToInt CPX_USECUT_FORCE = 0
+cutToInt CPX_USECUT_PURGE = 1
+cutToInt CPX_USECUT_FILTER = 2
 
 intToType :: (Eq a, Num a) => a -> Maybe CPX_PROB_TYPE
 intToType  0 = Just CPX_PROB_LP

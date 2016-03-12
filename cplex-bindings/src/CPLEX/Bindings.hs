@@ -44,11 +44,19 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXsiftopt
                       , c_CPXsolution
                       , c_CPXwriteprob
-                      , c_CPXaddusercuts
+                      -- Callbacks
                       , CIncumbentCallback
+                      , CCutCallback
                       , c_createIncumbentCallbackPtr
+                      , c_createCutCallbackPtr
                       , c_CPXsetincumbentcallbackfunc
+                      , c_CPXsetcutcallbackfunc
+                      -- MIP cuts
+                      , c_CPXcutcallbackadd
+                      , c_CPXaddusercuts
                       , c_CPXaddlazyconstraints
+                      , c_CPXgetcallbacknodex
+                      , c_CPXgetcallbacknodelp
                       ) where
 
 import           Foreign.C   (CChar (..), CDouble (..), CInt (..))
@@ -210,6 +218,15 @@ foreign import ccall safe "cplex.h CPXwriteprob" c_CPXwriteprob ::
   Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CChar -> Ptr CChar -> IO CInt
 
 
+
+--int CPXgetcallbacknodelp(CPXCENVptr env, void * cbdata, int wherefrom, CPXLPptr * nodelp_p)
+foreign import ccall safe "cplex.h CPXgetcallbacknodelp" c_CPXgetcallbacknodelp ::
+    Ptr CpxEnv' -> Ptr () -> CInt -> Ptr (Ptr CpxLp') -> IO CInt
+
+--int CPXgetcallbacknodex(CPXCENVptr env, void * cbdata, int wherefrom, double * x, int begin, int end)
+foreign import ccall safe "cplex.h CPXgetcallbacknodex" c_CPXgetcallbacknodex ::
+    Ptr CpxEnv' -> Ptr () -> CInt -> Ptr CDouble -> CInt -> CInt -> IO CInt
+
 --new
 -- http://www.ibm.com/support/knowledgecenter/SSSA5P_12.2.0/ilog.odms.cplex.help/html/refcallablelibrary/html/functions/CPXaddusercuts.html?lang=en
 foreign import ccall safe "cplex.h CPXaddusercuts" c_CPXaddusercuts ::
@@ -227,8 +244,20 @@ foreign import ccall safe "cplex.h CPXaddlazyconstraints" c_CPXaddlazyconstraint
     Ptr (Ptr CChar) -> -- rowname
     IO CInt
 
+-- int CPXcutcallbackadd(CPXCENVptr env, void * cbdata, int wherefrom, int nzcnt, double rhs, int sense, int const * cutind, double const * cutval, int purgeable)
+foreign import ccall safe "cplex.h CPXcutcallbackadd" c_CPXcutcallbackadd ::
+    Ptr CpxEnv' -> Ptr () -> CInt -> -- env, cbdata lp, wherefrom
+    CInt -> CDouble -> CInt -> -- nzcnt, rhs, sense
+    Ptr CInt -> Ptr CDouble -> --cutind, cutval
+    CInt -> -- purgable
+    IO CInt
+------------------------- CALLBACKS --------------------------------------------
+
 foreign import ccall safe "cplex.h CPXsetincumbentcallbackfunc" c_CPXsetincumbentcallbackfunc::
     Ptr CpxEnv' -> FunPtr CIncumbentCallback -> Ptr () -> IO CInt
+
+foreign import ccall safe "cplex.h CPXsetcutcallbackfunc" c_CPXsetcutcallbackfunc::
+    Ptr CpxEnv' -> FunPtr CCutCallback -> Ptr () -> IO CInt
 
 
     -- int callback (CPXCENVptr env,
@@ -242,11 +271,19 @@ foreign import ccall safe "cplex.h CPXsetincumbentcallbackfunc" c_CPXsetincumben
 type CIncumbentCallback = Ptr CpxEnv' -> --CPXCENVptr env
     Ptr () -> CInt -> Ptr () -> -- void *cbdata, int wherefrom, void *cbhandle
     CDouble -> Ptr CDouble -> -- double objval, double *x
-    Ptr Int -> Ptr Int ->  -- int *iseaf_p, in *useraction_p
+    Ptr Int -> Ptr Int ->  -- int *iseaf_p, int *useraction_p
+    IO Int
+
+type CCutCallback = Ptr CpxEnv' -> --CPXCENVptr env
+    Ptr () -> CInt -> Ptr () -> -- void *cbdata, int wherefrom, void *cbhandle
+    Ptr Int ->  -- int *useraction_p
     IO Int
 
 --foreign import ccal safe "wrapper" c_createIncumbentCallbackPtr :: (CIncumbentCallback) -> IO (FunPtr (CIncumbentCallback))
 
 foreign import ccall "wrapper"
     c_createIncumbentCallbackPtr :: CIncumbentCallback -> IO (FunPtr (CIncumbentCallback))
+
+foreign import ccall "wrapper"
+    c_createCutCallbackPtr :: CCutCallback -> IO (FunPtr (CCutCallback))
 --int CPXsetincumbentcallbackfunc(CPXENVptr env, int(*)(CALLBACK_INCUMBENT_ARGS) incumbentcallback, void * cbhandle)

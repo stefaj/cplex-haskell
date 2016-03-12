@@ -19,6 +19,7 @@ library
                    , containers
                    , cplex-bindings >= 0.2
                    , mtl
+                   , primitive >= 0.6.1.0
                    , transformers >= 0.4.2.0
                    , vector
   hs-source-dirs:    src

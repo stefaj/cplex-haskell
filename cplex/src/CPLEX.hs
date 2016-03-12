@@ -45,9 +45,12 @@ module CPLEX ( CpxEnv(..)
              , getErrorString
              , getStatString
              , setIncumbentCallback
+             , setCutCallback
              , addCuts
              , addRows
              , addLazyConstraints
+             , getCallbackLP
+             , getCallbackNodeX
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -55,6 +58,7 @@ module CPLEX ( CpxEnv(..)
 
 -- import           Control.Monad.Error
 import           Control.Monad.IO.Class
+import qualified Control.Monad.Primitive as Prim
 -- import           Control.Monad.Trans
 -- import           Control.Monad.Trans.Maybe
 import qualified Data.Map                     as M
@@ -664,9 +668,6 @@ addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
 
 addLazyConstraints :: CpxEnv -> CpxLp -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
 addLazyConstraints env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
-        --putStrLn $ "c_CPXaddlazyconstraints: " ++ (show numrows) ++ " " ++ (show nzcnt) ++ " " ++ (show rhs) ++ " " ++ (show sense) ++ " " ++ (show matbeg) ++ " " ++ (show matind) ++ " " ++ (show matval)
-        putStrLn $ show (matbeg, matind, matval)
-        putStrLn $ "test: " ++ (show $ toColForm' aMat)
         status <-
             VS.unsafeWith rhs $ \rows'' ->
             VS.unsafeWith sense $ \senses'' ->
@@ -693,6 +694,20 @@ addLazyConstraints env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
         --matbeg = VS.fromList $ replicate numrows 0
         (matbeg, matind, matval) = toColForm' aMat
 
+
+addCutFromCallback :: CpxEnv -> Ptr () -> CInt -> CInt -> CDouble -> CInt -> [(Col,Double)] -> CPX_CUT_TYPE -> IO (Maybe String)
+addCutFromCallback env@(CpxEnv env') cbdata wherefrom nzcnt rhs sense aMat purgable  = do
+        status <-
+            VS.unsafeWith cutind $ \ind ->
+            VS.unsafeWith cutvals $ \vals ->
+          c_CPXcutcallbackadd env' cbdata wherefrom nzcnt rhs sense ind vals purgable'
+        case status of
+          0 -> return Nothing
+          k -> fmap Just $ getErrorString env (CpxRet k)
+      where
+        cutind = VS.fromList $ map (\(Col a, v) -> fromIntegral a) aMat
+        cutvals = VS.fromList $ map (\(Col a, v) -> realToFrac v) aMat
+        purgable' = cutToInt purgable
 
 addRows :: CpxEnv -> CpxLp -> Int -> Int -> Int -> V.Vector Sense -> [(Row, Col,Double)] -> IO (Maybe String)
 addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
@@ -730,6 +745,43 @@ setIncumbentCallback env@(CpxEnv env') callback = do
     case status of
       0 -> return Nothing
       k -> fmap Just $ getErrorString env (CpxRet k)
+
+
+{-# NOINLINE setCutCallback #-}
+setCutCallback :: CpxEnv -> CCutCallback -> IO (Maybe String)
+setCutCallback env@(CpxEnv env') callback = do
+  ptr <- c_createCutCallbackPtr callback
+  status <- c_CPXsetcutcallbackfunc env' ptr nullPtr
+  case status of
+    0 -> return Nothing
+    k -> fmap Just $ getErrorString env (CpxRet k)
+
+
+getCallbackNodeX :: CpxEnv -> Ptr () -> Int -> Int -> Int -> IO (Maybe String, VS.Vector Double)
+getCallbackNodeX env@(CpxEnv env') cbDataPtr wherefrom begin end = do
+    xs' <- VSM.new (end - begin + 1)
+    status <- VSM.unsafeWith xs' $ \ptr ->
+                c_CPXgetcallbacknodex env' cbDataPtr (fromIntegral wherefrom) ptr (fromIntegral begin) (fromIntegral end)
+    xs <- VS.freeze xs'
+    stat <- case status of
+            0 -> return Nothing
+            k -> fmap Just $ getErrorString env (CpxRet k)
+    return (stat, VS.map realToFrac xs)
+
+-- IMPORTANT FREE MEMORY AFTERWARDS
+getCallbackLP :: CpxEnv -> Ptr () -> Int -> IO (Either String CpxLp)
+getCallbackLP env@(CpxEnv env') cbDataPtr wherefrom = do
+    lpPtrPtr <- mallocBytes 8
+    lpstat <- c_CPXgetcallbacknodelp env' cbDataPtr (fromIntegral wherefrom) lpPtrPtr
+    lpPtr <- peek lpPtrPtr
+    free lpPtrPtr
+    case lpstat of
+                0 -> return $ Right $ CpxLp lpPtr
+                k -> do statString <- getErrorString env (CpxRet lpstat)
+                        return $ Left $ statString
+
+
+
 -------------------------------------------------
 
 withEnv :: (CpxEnv -> IO a) -> IO a
