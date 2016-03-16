@@ -7,7 +7,7 @@ import qualified Data.Vector as V
 import Foreign.C
 
 import CPLEX.Param
-import CPLEX
+import CPLEX.Core
 
 cpx_ON :: CInt
 cpx_ON  =  1

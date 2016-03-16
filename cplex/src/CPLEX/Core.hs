@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module CPLEX ( CpxEnv(..)
+module CPLEX.Core ( CpxEnv(..)
              , CpxLp
              , ObjSense(..)
              , Sense(..)
@@ -431,7 +431,19 @@ copyLpWithFun copylpFun env@(CpxEnv env') (CpxLp lp) numcols numrows objsense ob
   let objsense' = fromIntegral (fromEnum objsense)
       numcols' = fromIntegral numcols
       numrows' = fromIntegral numrows
-
+ -- print objsense
+ -- print obj
+ -- print rhs
+ -- print sense
+ -- print matbeg
+ -- print matcnt
+ -- print matind
+ -- print matval
+ -- print lb
+ -- print ub
+ -- print rngval
+ -- print numrows'
+ -- print numcols'
   status <-
     VS.unsafeWith obj    $ \obj' ->
     VS.unsafeWith rhs    $ \rhs' ->

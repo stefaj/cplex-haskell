@@ -17,7 +17,7 @@ Description:
 build-type:          Simple
 cabal-version:       >=1.8
 Library
-  exposed-modules:   CPLEX,
+  exposed-modules:   CPLEX.Core,
                      CPLEX.Param
                      CPLEX.Bindings
   -- other-modules:
