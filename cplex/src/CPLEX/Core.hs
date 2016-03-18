@@ -47,6 +47,7 @@ module CPLEX.Core ( CpxEnv(..)
              -- MIP
              , setIncumbentCallback
              , setCutCallback
+             , setLazyConstraintCallback  
              , addCuts
              , addRows
              , addLazyConstraints
@@ -776,6 +777,14 @@ setCutCallback env@(CpxEnv env') callback = do
     0 -> return Nothing
     k -> fmap Just $ getErrorString env (CpxRet k)
 
+{-# NOINLINE setLazyConstraintCallback #-}
+setLazyConstraintCallback :: CpxEnv -> CCutCallback -> IO (Maybe String)
+setLazyConstraintCallback env@(CpxEnv env') callback = do
+  ptr <- c_createCutCallbackPtr callback
+  status <- c_CPXsetlazyconstraintcallbackfunc env' ptr nullPtr
+  case status of
+    0 -> return Nothing
+    k -> fmap Just $ getErrorString env (CpxRet k)
 
 getCallbackNodeX :: CpxEnv -> Ptr () -> Int -> Int -> Int -> IO (Maybe String, VS.Vector Double)
 getCallbackNodeX env@(CpxEnv env') cbDataPtr wherefrom begin end = do

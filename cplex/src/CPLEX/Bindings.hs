@@ -51,6 +51,7 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_createCutCallbackPtr
                       , c_CPXsetincumbentcallbackfunc
                       , c_CPXsetcutcallbackfunc
+                      , c_CPXsetlazyconstraintcallbackfunc
                       -- MIP cuts
                       , c_CPXcutcallbackadd
                       , c_CPXaddusercuts
@@ -259,6 +260,8 @@ foreign import ccall safe "cplex.h CPXsetincumbentcallbackfunc" c_CPXsetincumben
 foreign import ccall safe "cplex.h CPXsetcutcallbackfunc" c_CPXsetcutcallbackfunc::
     Ptr CpxEnv' -> FunPtr CCutCallback -> Ptr () -> IO CInt
 
+foreign import ccall safe "cplex.h CPXsetlazyconstraintcallbackfunc" c_CPXsetlazyconstraintcallbackfunc::
+    Ptr CpxEnv' -> FunPtr CCutCallback -> Ptr () -> IO CInt
 
     -- int callback (CPXCENVptr env,
     --               void *cbdata,
