@@ -3,6 +3,8 @@
 module CPLEX.Param ( CPX_PARAM(..)
                    , CPX_PROB_TYPE(..)
                    , CPX_CUT_TYPE(..)
+                   , CPX_EFFORT_LEVEL(..)
+                   , effortLevelToInt 
                    , cutToInt
                    , paramToInt
                    , typeToInt
@@ -181,6 +183,19 @@ cutToInt :: CPX_CUT_TYPE -> CInt
 cutToInt CPX_USECUT_FORCE = 0
 cutToInt CPX_USECUT_PURGE = 1
 cutToInt CPX_USECUT_FILTER = 2
+
+data CPX_EFFORT_LEVEL = CPX_MIPSTART_AUTO
+                      | CPX_MIPSTART_CHECKFEAS
+                      | CPX_MIPSTART_SOLVEFIXED
+                      | CPX_MIPSTART_SOLVEMIP
+                      | CPX_MIPSTART_REPAIR
+
+effortLevelToInt :: CPX_EFFORT_LEVEL -> CInt
+effortLevelToInt CPX_MIPSTART_AUTO = 0
+effortLevelToInt CPX_MIPSTART_CHECKFEAS = 1
+effortLevelToInt CPX_MIPSTART_SOLVEFIXED = 2
+effortLevelToInt CPX_MIPSTART_SOLVEMIP = 3
+effortLevelToInt CPX_MIPSTART_REPAIR = 4
 
 intToType :: (Eq a, Num a) => a -> Maybe CPX_PROB_TYPE
 intToType  0 = Just CPX_PROB_LP

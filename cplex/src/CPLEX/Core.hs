@@ -54,6 +54,7 @@ module CPLEX.Core ( CpxEnv(..)
              , getCallbackLP
              , getCallbackNodeX
              , addCutFromCallback
+             , addSingleMIPStart
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -73,7 +74,7 @@ import           Foreign.C
 import           Foreign.Marshal
 import           Foreign.Ptr
 import           Foreign.Storable
-
+import           Control.Applicative
 import           CPLEX.Bindings
 import           CPLEX.Param
 import           Data.Char(ord)
@@ -337,8 +338,8 @@ toColForm' amat = (VS.fromList matbeg, VS.fromList matind, VS.fromList matval)
     where
         cols = map (\(Row a, Col b, v) -> b) amat
         rows = map (\(Row a, _, _) -> a) amat
-        numRows = (maximum rows) - (minimum rows) + 1
-        numCols = (maximum cols) - (minimum cols) + 1
+        numRows = maximum rows - (minimum rows) + 1
+        numCols = maximum cols - (minimum cols) + 1
         rows' = map (\q -> filter (\(Row a, Col b, v) -> a== q ) amat) [minimum rows..maximum rows]
         matval = map (\(Row a, Col b, v) -> realToFrac v) $ concat rows'
         matind = map (\(Row a, Col b, v) -> fromIntegral b) $ concat rows'
@@ -639,16 +640,12 @@ changeSens env@(CpxEnv env') (CpxLp lp') rs = do
     VS.unsafeWith rows $ \rows'' ->
     VS.unsafeWith senses $ \senses'' ->
     c_CPXchgsense env' lp' num rows'' senses''
-  case status of
-    0 -> return Nothing
-    k -> fmap Just $ getErrorString env (CpxRet k)
+  getErrorStatus env status
 
 changeQpCoef :: CpxEnv -> CpxLp -> Row -> Col -> Double -> IO (Maybe String)
 changeQpCoef env@(CpxEnv env') (CpxLp lp') (Row row) (Col col) val = do
   status <- c_CPXchgqpcoef env' lp' (fromIntegral row) (fromIntegral col) (realToFrac val)
-  case status of
-    0 -> return Nothing
-    k -> fmap Just $ getErrorString env (CpxRet k)
+  getErrorStatus env status
 
 
 --------------------------------------------------
@@ -664,9 +661,7 @@ addCuts env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
 
       c_CPXaddusercuts env' lp' (fromIntegral numrows) (fromIntegral nzcnt)
                 rows'' senses'' matbeg'' matind'' matval'' nullPtr
-    case status of
-      0 -> return Nothing
-      k -> fmap Just $ getErrorString env (CpxRet k)
+    getErrorStatus env status
   where
     numrows = V.length senseRhsRngVal
 
@@ -693,9 +688,7 @@ addLazyConstraints env@(CpxEnv env') (CpxLp lp') nzcnt senseRhsRngVal aMat  = do
 
           c_CPXaddlazyconstraints env' lp' (fromIntegral numrows) (fromIntegral nzcnt)
                     rows'' senses'' matbeg'' matind'' matval'' nullPtr
-        case status of
-          0 -> return Nothing
-          k -> fmap Just $ getErrorString env (CpxRet k)
+        getErrorStatus env status
       where
         numrows = V.length senseRhsRngVal
 
@@ -717,9 +710,7 @@ addCutFromCallback env@(CpxEnv env') cbdata wherefrom nzcnt sense aMat purgable 
             VS.unsafeWith cutind $ \ind ->
             VS.unsafeWith cutvals $ \vals ->
           c_CPXcutcallbackadd env' cbdata wherefrom nzcnt rhs' sense' ind vals purgable'
-        case status of
-          0 -> return Nothing
-          k -> fmap Just $ getErrorString env (CpxRet k)
+        getErrorStatus env status
       where
         cutind = VS.fromList $ map (\(Col a, v) -> fromIntegral a) aMat
         cutvals = VS.fromList $ map (\(Col a, v) -> realToFrac v) aMat
@@ -741,9 +732,7 @@ addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
 
       c_CPXaddrows env' lp' (fromIntegral ccnt) (fromIntegral rcnt) (fromIntegral nzcnt)
                 rows'' senses'' matbeg'' matind'' matval'' nullPtr nullPtr
-    case status of
-      0 -> return Nothing
-      k -> fmap Just $ getErrorString env (CpxRet k)
+    getErrorStatus env status
   where
     numrows = V.length senseRhsRngVal
 
@@ -758,14 +747,27 @@ addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
 
     (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
 
+getErrorStatus env status = case status of
+  0 -> return Nothing
+  k -> Just <$> getErrorString env (CpxRet k)
+
+addSingleMIPStart :: CpxEnv -> CpxLp -> [Int] -> [Double] -> CPX_EFFORT_LEVEL -> IO (Maybe String)
+addSingleMIPStart env@(CpxEnv env') (CpxLp lp') indices values effortLevel = do
+    let n = fromIntegral $ length indices
+    status <- VS.unsafeWith (VS.fromList $ fromIntegral <$> indices) $ \indices' ->
+              VS.unsafeWith (VS.fromList $ realToFrac <$> values) $ \values' ->
+              VS.unsafeWith (VS.fromList [effortLevelToInt effortLevel]) $ \effortLevels ->
+              VS.unsafeWith (VS.fromList [0]) $ \beg ->
+              c_CPXaddmipstarts env' lp' 1 n beg indices' values' effortLevels nullPtr
+    getErrorStatus env status
+
+
 {-# NOINLINE setIncumbentCallback #-}
 setIncumbentCallback :: CpxEnv -> CIncumbentCallback -> IO (Maybe String)
 setIncumbentCallback env@(CpxEnv env') callback = do
     ptr <- c_createIncumbentCallbackPtr callback
     status <- c_CPXsetincumbentcallbackfunc env' ptr nullPtr
-    case status of
-      0 -> return Nothing
-      k -> fmap Just $ getErrorString env (CpxRet k)
+    getErrorStatus env status
 
 
 {-# NOINLINE setCutCallback #-}
@@ -773,18 +775,14 @@ setCutCallback :: CpxEnv -> CCutCallback -> IO (Maybe String)
 setCutCallback env@(CpxEnv env') callback = do
   ptr <- c_createCutCallbackPtr callback
   status <- c_CPXsetcutcallbackfunc env' ptr nullPtr
-  case status of
-    0 -> return Nothing
-    k -> fmap Just $ getErrorString env (CpxRet k)
+  getErrorStatus env status
 
 {-# NOINLINE setLazyConstraintCallback #-}
 setLazyConstraintCallback :: CpxEnv -> CCutCallback -> IO (Maybe String)
 setLazyConstraintCallback env@(CpxEnv env') callback = do
   ptr <- c_createCutCallbackPtr callback
   status <- c_CPXsetlazyconstraintcallbackfunc env' ptr nullPtr
-  case status of
-    0 -> return Nothing
-    k -> fmap Just $ getErrorString env (CpxRet k)
+  getErrorStatus env status
 
 getCallbackNodeX :: CpxEnv -> Ptr () -> Int -> Int -> Int -> IO (Maybe String, VS.Vector Double)
 getCallbackNodeX env@(CpxEnv env') cbDataPtr wherefrom begin end = do
@@ -792,9 +790,7 @@ getCallbackNodeX env@(CpxEnv env') cbDataPtr wherefrom begin end = do
     status <- VSM.unsafeWith xs' $ \ptr ->
                 c_CPXgetcallbacknodex env' cbDataPtr (fromIntegral wherefrom) ptr (fromIntegral begin) (fromIntegral end)
     xs <- VS.freeze xs'
-    stat <- case status of
-            0 -> return Nothing
-            k -> fmap Just $ getErrorString env (CpxRet k)
+    stat <- getErrorStatus env status
     return (stat, VS.map realToFrac xs)
 
 -- IMPORTANT FREE MEMORY AFTERWARDS
@@ -807,7 +803,7 @@ getCallbackLP env@(CpxEnv env') cbDataPtr wherefrom = do
     case lpstat of
                 0 -> return $ Right $ CpxLp lpPtr
                 k -> do statString <- getErrorString env (CpxRet lpstat)
-                        return $ Left $ statString
+                        return $ Left statString
 
 
 

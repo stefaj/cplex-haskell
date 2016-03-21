@@ -53,6 +53,7 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXsetcutcallbackfunc
                       , c_CPXsetlazyconstraintcallbackfunc
                       -- MIP cuts
+                      , c_CPXaddmipstarts 
                       , c_CPXcutcallbackadd
                       , c_CPXaddusercuts
                       , c_CPXaddlazyconstraints
@@ -228,6 +229,14 @@ foreign import ccall safe "cplex.h CPXgetcallbacknodelp" c_CPXgetcallbacknodelp 
 foreign import ccall safe "cplex.h CPXgetcallbacknodex" c_CPXgetcallbacknodex ::
     Ptr CpxEnv' -> Ptr () -> CInt -> Ptr CDouble -> CInt -> CInt -> IO CInt
 
+-- int CPXaddmipstarts(CPXCENVptr env, CPXLPptr lp, int mcnt, int nzcnt, const
+-- int * beg, const int * varindices, const double * values, const int *
+-- effortlevel, char ** mipstartname)
+foreign import ccall safe "cplex.h CPXaddmipstarts" c_CPXaddmipstarts ::
+  Ptr CpxEnv' -> Ptr CpxLp' -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> Ptr CDouble
+  -> Ptr CInt -> Ptr (Ptr CChar) -> IO CInt
+
+
 --new
 -- http://www.ibm.com/support/knowledgecenter/SSSA5P_12.2.0/ilog.odms.cplex.help/html/refcallablelibrary/html/functions/CPXaddusercuts.html?lang=en
 foreign import ccall safe "cplex.h CPXaddusercuts" c_CPXaddusercuts ::
@@ -290,3 +299,5 @@ foreign import ccall "wrapper"
 foreign import ccall "wrapper"
     c_createCutCallbackPtr :: CCutCallback -> IO (FunPtr (CCutCallback))
 --int CPXsetincumbentcallbackfunc(CPXENVptr env, int(*)(CALLBACK_INCUMBENT_ARGS) incumbentcallback, void * cbhandle)
+
+
