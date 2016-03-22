@@ -198,7 +198,7 @@ getNumRows :: CpxEnv -> CpxLp -> IO Int
 getNumRows (CpxEnv env) (CpxLp lp) = fmap fromIntegral (c_CPXgetnumrows env lp)
 
 data CpxSolution = CpxSolution { solObj   :: Double
-                               , solStat  :: String
+                               , solStat  :: CPX_SOLUTION_CODE
                                , solX     :: Vector Double
                                , solPi    :: Vector Double
                                , solSlack :: Vector Double
@@ -242,7 +242,7 @@ getSolution env@(CpxEnv env') lp@(CpxLp lp') = do
 --      status <- c_CPXwriteprob env' lp' filename nullPtr
 
       return $ Right $ CpxSolution { solObj = realToFrac objval
-                                   , solStat = statString
+                                   , solStat = intToSolution lpstat
                                    , solX = VS.map realToFrac x''
                                    , solPi = VS.map realToFrac p''
                                    , solSlack = VS.map realToFrac slack''
@@ -250,23 +250,58 @@ getSolution env@(CpxEnv env') lp@(CpxLp lp') = do
                                    }
     k -> fmap Left (getErrorString env (CpxRet k))
 
-getMIPSolution :: CpxEnv -> CpxLp -> IO (Either String CpxSolution)
+
+
+
+
+getMIPSolution :: CpxEnv -> CpxLp -> IO (Either String  CpxSolution)
 getMIPSolution env@(CpxEnv env') lp@(CpxLp lp') = do
+  lpstat' <- malloc
+  objval' <- malloc
+
+  numrows <- getNumRows env lp
+  numcols <- getNumCols env lp
+  x <- VSM.new numcols
+
+  status <-
+    VSM.unsafeWith x $ \x' ->
+    c_CPXsolution env' lp' lpstat' objval' x' nullPtr nullPtr nullPtr
+
+  lpstat <- peek lpstat'
+  objval <- peek objval'
+  free lpstat'
+  free objval'
+
+  x'' <- VS.freeze x
+  case status of
+    0 -> do
+      statString <- getStatString env (CpxRet lpstat)
+
+      return $ Right $ CpxSolution { solObj = realToFrac objval
+                                   , solStat = intToSolution lpstat
+                                   , solX = VS.map realToFrac x''
+                                   , solPi = VS.empty
+                                   , solSlack = VS.empty 
+                                   , solDj = VS.empty 
+                                   }
+    k -> fmap Left (getErrorString env (CpxRet k))
+
+
+
+
+
+getMIPSolution' :: CpxEnv -> CpxLp -> IO (Either String CpxSolution)
+getMIPSolution' env@(CpxEnv env') lp@(CpxLp lp') = do
   status <- c_CPXchgprobtype env' lp' $ typeToInt CPX_PROB_MILP
   case status of
     0 -> do
---      lpstat' <- malloc
       objval' <- malloc
 
       numrows <- getNumRows env lp
       numcols <- getNumCols env lp
       x <- VSM.new numcols
---      p <- VSM.new numrows
       slack <- VSM.new numrows
---      dj <- VSM.new numcols
 
---      status <- c_CPXgetstat env' lp'
---      statString <- getStatString env (CpxRet lpstat)
       let statString = ""
 
       status <- c_CPXgetobjval env' lp' objval'
@@ -284,11 +319,9 @@ getMIPSolution env@(CpxEnv env') lp@(CpxLp lp') = do
                 0 -> do
                   slack'' <- VS.freeze slack
 
---                  filename <- newCAString "mip.lp"
---                  status <- c_CPXwriteprob env' lp' filename nullPtr
 
                   return $ Right $ CpxSolution { solObj = realToFrac objval
-                                               , solStat = statString
+                                               , solStat = intToSolution 0
                                                , solX = VS.map realToFrac x''
                                                , solPi = VS.fromList $ take numcols [0.0,0.0..]
                                                , solSlack = VS.map realToFrac slack''

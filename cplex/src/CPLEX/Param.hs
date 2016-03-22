@@ -4,6 +4,8 @@ module CPLEX.Param ( CPX_PARAM(..)
                    , CPX_PROB_TYPE(..)
                    , CPX_CUT_TYPE(..)
                    , CPX_EFFORT_LEVEL(..)
+                   , CPX_SOLUTION_CODE(..)
+                   , intToSolution 
                    , effortLevelToInt 
                    , cutToInt
                    , paramToInt
@@ -207,3 +209,115 @@ intToType  8 = Just CPX_PROB_FIXEDMIQP
 intToType 10 = Just CPX_PROB_QCP
 intToType 11 = Just CPX_PROB_MIQCP
 intToType  _ = Nothing
+
+data CPX_SOLUTION_CODE = CPX_STAT_OPTIMAL
+        | CPX_STAT_UNBOUNDED
+        | CPX_STAT_INFEASIBLE
+        | CPX_STAT_INForUNBD
+        | CPX_STAT_OPTIMAL_INFEAS
+        | CPX_STAT_NUM_BEST
+        | CPX_STAT_ABORT_IT_LIM
+        | CPX_STAT_ABORT_TIME_LIM
+        | CPX_STAT_ABORT_OBJ_LIM
+        | CPX_STAT_ABORT_USER
+        | CPX_STAT_FEASIBLE_RELAXED_SUM
+        | CPX_STAT_OPTIMAL_RELAXED_SUM
+        | CPX_STAT_FEASIBLE_RELAXED_INF
+        | CPX_STAT_OPTIMAL_RELAXED_INF
+        | CPX_STAT_FEASIBLE_RELAXED_QUAD
+        | CPX_STAT_OPTIMAL_RELAXED_QUAD
+        | CPX_STAT_CONFLICT_FEASIBLE
+        | CPX_STAT_CONFLICT_MINIMAL
+        | CPX_STAT_CONFLICT_ABORT_CONTRADICTION
+        | CPX_STAT_CONFLICT_ABORT_TIME_LIM
+        | CPX_STAT_CONFLICT_ABORT_IT_LIM
+        | CPX_STAT_CONFLICT_ABORT_NODE_LIM
+        | CPX_STAT_CONFLICT_ABORT_OBJ_LIM
+        | CPX_STAT_CONFLICT_ABORT_MEM_LIM
+        | CPX_STAT_CONFLICT_ABORT_USER
+        | CPX_STAT_OPTIMAL_FACE_UNBOUNDED
+        | CPX_STAT_ABORT_PRIM_OBJ_LIM
+        | CPX_STAT_ABORT_DUAL_OBJ_LIM
+        | CPXMIP_OPTIMAL
+        | CPXMIP_OPTIMAL_TOL
+        | CPXMIP_INFEASIBLE
+        | CPXMIP_SOL_LIM
+        | CPXMIP_NODE_LIM_FEAS
+        | CPXMIP_NODE_LIM_INFEAS
+        | CPXMIP_TIME_LIM_FEAS
+        | CPXMIP_TIME_LIM_INFEAS
+        | CPXMIP_FAIL_FEAS
+        | CPXMIP_FAIL_INFEAS
+        | CPXMIP_MEM_LIM_FEAS
+        | CPXMIP_MEM_LIM_INFEAS
+        | CPXMIP_ABORT_FEAS
+        | CPXMIP_ABORT_INFEAS
+        | CPXMIP_OPTIMAL_INFEAS
+        | CPXMIP_FAIL_FEAS_NO_TREE
+        | CPXMIP_FAIL_INFEAS_NO_TREE
+        | CPXMIP_UNBOUNDED
+        | CPXMIP_INForUNBD
+        | CPXMIP_FEASIBLE_RELAXED_SUM
+        | CPXMIP_OPTIMAL_RELAXED_SUM
+        | CPXMIP_FEASIBLE_RELAXED_INF
+        | CPXMIP_OPTIMAL_RELAXED_INF
+        | CPXMIP_FEASIBLE_RELAXED_QUAD
+        | CPXMIP_OPTIMAL_RELAXED_QUAD
+        | CPXMIP_ABORT_RELAXED
+          deriving (Show, Eq)
+
+intToSolution :: CInt -> CPX_SOLUTION_CODE
+intToSolution   1  = CPX_STAT_OPTIMAL                         
+intToSolution   2  = CPX_STAT_UNBOUNDED                       
+intToSolution   3  = CPX_STAT_INFEASIBLE                      
+intToSolution   4  = CPX_STAT_INForUNBD                       
+intToSolution   5  = CPX_STAT_OPTIMAL_INFEAS                  
+intToSolution   6  = CPX_STAT_NUM_BEST                        
+intToSolution  10  = CPX_STAT_ABORT_IT_LIM                    
+intToSolution  11  = CPX_STAT_ABORT_TIME_LIM                  
+intToSolution  12  = CPX_STAT_ABORT_OBJ_LIM                   
+intToSolution  13  = CPX_STAT_ABORT_USER                      
+intToSolution  14  = CPX_STAT_FEASIBLE_RELAXED_SUM            
+intToSolution  15  = CPX_STAT_OPTIMAL_RELAXED_SUM             
+intToSolution  16  = CPX_STAT_FEASIBLE_RELAXED_INF            
+intToSolution  17  = CPX_STAT_OPTIMAL_RELAXED_INF             
+intToSolution  18  = CPX_STAT_FEASIBLE_RELAXED_QUAD           
+intToSolution  19  = CPX_STAT_OPTIMAL_RELAXED_QUAD            
+intToSolution  30  = CPX_STAT_CONFLICT_FEASIBLE               
+intToSolution  31  = CPX_STAT_CONFLICT_MINIMAL                
+intToSolution  32  = CPX_STAT_CONFLICT_ABORT_CONTRADICTION    
+intToSolution  33  = CPX_STAT_CONFLICT_ABORT_TIME_LIM         
+intToSolution  34  = CPX_STAT_CONFLICT_ABORT_IT_LIM           
+intToSolution  35  = CPX_STAT_CONFLICT_ABORT_NODE_LIM         
+intToSolution  36  = CPX_STAT_CONFLICT_ABORT_OBJ_LIM          
+intToSolution  37  = CPX_STAT_CONFLICT_ABORT_MEM_LIM          
+intToSolution  38  = CPX_STAT_CONFLICT_ABORT_USER             
+intToSolution  20  = CPX_STAT_OPTIMAL_FACE_UNBOUNDED          
+intToSolution  21  = CPX_STAT_ABORT_PRIM_OBJ_LIM              
+intToSolution  22  = CPX_STAT_ABORT_DUAL_OBJ_LIM              
+intToSolution 101  = CPXMIP_OPTIMAL                           
+intToSolution 102  = CPXMIP_OPTIMAL_TOL                       
+intToSolution 103  = CPXMIP_INFEASIBLE                        
+intToSolution 104  = CPXMIP_SOL_LIM                           
+intToSolution 105  = CPXMIP_NODE_LIM_FEAS                     
+intToSolution 106  = CPXMIP_NODE_LIM_INFEAS                   
+intToSolution 107  = CPXMIP_TIME_LIM_FEAS                     
+intToSolution 108  = CPXMIP_TIME_LIM_INFEAS                   
+intToSolution 109  = CPXMIP_FAIL_FEAS                         
+intToSolution 110  = CPXMIP_FAIL_INFEAS                       
+intToSolution 111  = CPXMIP_MEM_LIM_FEAS                      
+intToSolution 112  = CPXMIP_MEM_LIM_INFEAS                    
+intToSolution 113  = CPXMIP_ABORT_FEAS                        
+intToSolution 114  = CPXMIP_ABORT_INFEAS                      
+intToSolution 115  = CPXMIP_OPTIMAL_INFEAS                    
+intToSolution 116  = CPXMIP_FAIL_FEAS_NO_TREE                 
+intToSolution 117  = CPXMIP_FAIL_INFEAS_NO_TREE               
+intToSolution 118  = CPXMIP_UNBOUNDED                         
+intToSolution 119  = CPXMIP_INForUNBD                         
+intToSolution 120  = CPXMIP_FEASIBLE_RELAXED_SUM              
+intToSolution 121  = CPXMIP_OPTIMAL_RELAXED_SUM               
+intToSolution 122  = CPXMIP_FEASIBLE_RELAXED_INF              
+intToSolution 123  = CPXMIP_OPTIMAL_RELAXED_INF               
+intToSolution 124  = CPXMIP_FEASIBLE_RELAXED_QUAD             
+intToSolution 125  = CPXMIP_OPTIMAL_RELAXED_QUAD              
+intToSolution 126  = CPXMIP_ABORT_RELAXED                    
