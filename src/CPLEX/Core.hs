@@ -31,6 +31,7 @@ module CPLEX.Core ( CpxEnv(..)
              , hybnetopt
              , getSolution
              , getMIPSolution
+             , writeprob
                -- * change things
              , changeCoefList
              , changeObj
@@ -332,6 +333,12 @@ getMIPSolution' env@(CpxEnv env') lp@(CpxLp lp') = do
         k -> fmap Left (getErrorString env (CpxRet k))
     k -> fmap Left (getErrorString env (CpxRet k))
 
+writeprob :: CpxEnv -> CpxLp -> String -> IO (Maybe String)
+writeprob env@(CpxEnv env') lp@(CpxLp lp') filename = do
+  fn <- newCAString filename 
+  status <- c_CPXwriteprob env' lp' fn nullPtr
+  getErrorStatus env status
+
 toCpxError :: CpxEnv -> CInt -> IO (Maybe String)
 toCpxError env 0 = return Nothing
 toCpxError env k = do
@@ -416,6 +423,44 @@ toColForm numcols amat = (matbeg, matcnt, matind, matval)
     preorder :: [(Col,[(Row,Double)])]
     preorder = map (\(row,col,val) -> (col, [(row, val)])) amat
 
+
+toRowForm :: Int -> [(Row,Col,Double)] -> (Vector CInt, Vector CInt, Vector CInt, Vector CDouble)
+toRowForm numrows amat = (matbeg, matcnt, matind, matval)
+  where
+    matbeg = VS.fromList $ map fromIntegral begs
+    matcnt = VS.fromList $ map fromIntegral cnts
+    matind = VS.fromList $ map (fromIntegral . unCol) inds
+    matval = VS.fromList $ map realToFrac vals
+
+    -- sort colMap into the from CPLEX wants
+    inds :: [Col]
+    vals :: [Double]
+    (inds,vals) = unzip $ concat cols 
+
+    begs :: [Int]
+    cnts :: [Int]
+    cols :: [[(Col,Double)]]
+    (begs,cnts,cols) = unzip3 $ rowMapInfo' 0 $ M.elems rowMap
+
+    rowMapInfo' :: Int -> [[(Col,Double)]] -> [(Int,Int,[(Col,Double)])]
+    rowMapInfo' beg (col:xs) = (beg,cnt,col) : rowMapInfo' (beg + cnt) xs
+      where
+        cnt = length col 
+    rowMapInfo' _ [] = []
+
+    -- add Rows with no entries in case some are missing
+    rowMap = M.union rowMap' emptyRowMap
+
+    emptyRowMap :: M.Map Row [(Col,Double)]
+    emptyRowMap = M.fromList $ take numrows $ zip (map Row [0..]) (repeat [])
+
+    -- a map from Row to all (Col,Double) pairs
+    rowMap' :: M.Map Row [(Col,Double)]
+    rowMap' = M.fromListWith (++) preorder
+
+    -- reorganize the (Row,Col,Double) into (Row, [(Col,Double)]) with only 1 (Row,Double)
+    preorder :: [(Row,[(Col,Double)])]
+    preorder = map (\(row,col,val) -> (row, [(col, val)])) amat
 
 copyLp :: CpxEnv -> CpxLp -> ObjSense -> V.Vector Double -> V.Vector Sense -> [(Row,Col,Double)] -> V.Vector (Maybe Double, Maybe Double) -> IO (Maybe String)
 copyLp = copyLpWithFun' c_CPXcopylp
@@ -778,7 +823,7 @@ addRows env@(CpxEnv env') (CpxLp lp') ccnt rcnt nzcnt senseRhsRngVal aMat  = do
     sense  = VS.fromList $ V.toList sense'
     rhs    = VS.fromList $ V.toList rhs'
 
-    (matbeg, matcnt, matind, matval) = toColForm nzcnt aMat
+    (matbeg, matcnt, matind, matval) = toRowForm rcnt aMat
 
 getErrorStatus env status = case status of
   0 -> return Nothing
