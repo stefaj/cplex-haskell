@@ -1,5 +1,5 @@
 name:                cplex-hs
-version:             0.2.0.2
+version:             0.2.1.2
 synopsis:            high-level CPLEX interface
 -- description:
 License:             BSD3
@@ -15,17 +15,21 @@ Description:
     High level interface to CPLEX
 
 build-type:          Simple
-cabal-version:       >=1.8
+cabal-version:       >=1.24
 Library
   exposed-modules:   CPLEX.Core,
                      CPLEX.Param
                      CPLEX.Bindings
+                     LSolver.Bindings
+                     LSolver.Dummy
+                     LSolver.Backend.Cplex
+                     LSolver.Problems.MinCostMulticom
   -- other-modules:
-  Build-depends:     base >= 4 && < 5
+  Build-depends:     base 
                    , containers
                    , mtl
-                   , primitive >= 0.6.1.0
-                   , transformers >= 0.4.2.0
+                   , primitive 
+                   , transformers 
                    , vector
   hs-source-dirs:    src
 
