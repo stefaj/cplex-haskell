@@ -10,8 +10,10 @@ import LSolver.Bindings
 data Equality = L Double | E Double | G Double
 data Mat = Row Int | Col Int
 
-objF :: Optimization
-objF = Maximize [1, 2, 3]
+data Var = X | Y | Z
+
+objF :: Optimization Int
+objF = Maximize [1 :# 0 , 2 :# 1, 3 :# 2]
 
 st :: Constraints Int
 st = Sparse [

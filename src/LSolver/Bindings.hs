@@ -1,23 +1,23 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(..),
-            Bounds(..), Type(..), MixedIntegerProblem, LinearProblem, MIPSolution(..), LPSolution(..)) where
+            Bounds(..), Type(..), MixedIntegerProblem(..), LinearProblem(..), MIPSolution(..), LPSolution(..)) where
 
-import Data.Ix as I
 import Data.List (intercalate)
 import qualified Data.Vector as V
+import qualified Data.Map as M
 
-data Variable a =  Double :# a
+data Variable a = Double :# a
 
 data Bound x =  x :< Double
              |  x :> Double
              |  x := Double
              deriving Show
 
-data Constraints a = Sparse  [ Bound [Variable a] ]
+data Constraints a = Sparse [ Bound [Variable a] ]
 
-data Optimization = Maximize [Double]
-                  | Minimize [Double] 
+data Optimization a = Maximize [Variable a]
+                    | Minimize [Variable a]
 
 data Type = TContinuous | TInteger | TBinary
 
@@ -26,9 +26,10 @@ instance (Show a) => Show (Variable a) where
       | d == (-1) = "-x" ++ (show v)
       | d == 1 = "x" ++ (show v)
       | otherwise = (show d) ++ "x" ++ (show v)
-instance Show Optimization where
-  show (Minimize xs) = "Minimize\n\t" ++ (showVars xs)
-  show (Maximize xs) = "Maximize\n\t" ++ (showVars xs)
+
+instance Show a => Show (Optimization a) where
+  show (Minimize xs) = "Minimize\n\t" ++ (intercalate "+" $ map show xs)
+  show (Maximize xs) = "Maximize\n\t" ++ (intercalate "+" $ map show xs)
 
 showVars xs = intercalate " + " $ map show $ zipWith (:#) xs [0..]
 
@@ -49,11 +50,12 @@ instance Show Type where
 
 type Bounds = [Bound Int]
 
-type LinearProblem a = (Optimization, Constraints a, [(a, Maybe Double, Maybe Double)], (a,a))
+newtype LinearProblem a = LP ( Optimization a, Constraints a, [(a, Maybe Double, Maybe Double)] )
 
-type MixedIntegerProblem a = (Optimization, Constraints a, [(a, Maybe Double, Maybe Double)],
-                                [(a,Type)], (a,a))
+newtype MixedIntegerProblem a = MILP ( Optimization a, Constraints a, [(a, Maybe Double, Maybe Double)],
+                                    [(a,Type)] )
 
 data MIPSolution = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: V.Vector Double} deriving (Show)
 
 data LPSolution = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: V.Vector Double, lpDualVars :: V.Vector Double} deriving (Show)
+

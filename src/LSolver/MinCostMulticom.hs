@@ -19,7 +19,7 @@ generateLinearProblem edges costs capacity commodities demand =
         edgeCapacity = genEdgeCapacity edges capacity
         objFunc = genObjectiveFunction pathsAll edgeCosts
         constraints = genConstraints pathsAll pathsCom edges edgeCapacity demand
-    in (objFunc, constraints, standardBounds varRange, varRange)
+    in LP (objFunc, constraints, standardBounds varRange)
 
     --
     -- edges = [(0,1),(1,4),(4,3),(0,2),(2,4),(2,3),(1,2)]

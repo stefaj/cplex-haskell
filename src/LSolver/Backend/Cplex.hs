@@ -20,6 +20,9 @@ import Foreign.Storable
 import Foreign.C
 import Control.Monad
 import Control.Monad.Reader
+import qualified Data.Map as M
+import Data.List (sortBy)
+import Data.Ord (comparing)
 
 data CallBacks = ActiveCallBacks {cutcb :: Maybe UserCutCallBack, inccb :: Maybe UserIncumbentCallBack,
                                   lazycb :: Maybe UserCutCallBack}
@@ -137,18 +140,27 @@ toStandard (Sparse (b:bs)) rowI accSt accRhs varRange = case b of
             generateRow ((v :# i):vs) = (Row rowI, Col $ I.index varRange i, v):generateRow vs
 
 
-toObj :: Optimization -> (ObjSense, V.Vector Double)
-toObj (Maximize dd) = (CPX_MAX, V.fromList dd)
-toObj (Minimize dd) = (CPX_MIN, V.fromList dd)
+toObj :: Optimization Int -> (ObjSense, V.Vector Double)
+toObj (Maximize dd) = (CPX_MAX, varsToVector dd)
+toObj (Minimize dd) = (CPX_MIN, varsToVector dd)
+
+-- This assumes that all elements are in !, zero pad boys
+varsToVector :: [Variable Int] -> V.Vector Double
+varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i) -> (i,c)) vs
 
 
-solLP :: LinearProblem Int -> ParamValues -> IO LPSolution
-solLP (objective, constraints, bounds, varRange) params = withEnv $ \env -> do
+solLP :: (Eq a, Ord a) => LinearProblem a -> ParamValues -> IO LPSolution
+solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "testprob" $ \lp -> do
     let
+        dic = generateVarDic constraints_
+        objective = tokenizeObj objective_ dic
+        constraints = tokenizeConstraints constraints_ dic
+        bounds = tokenizeBounds bounds_ dic
+        varRange = (0,M.size dic)
         (objsen, obj) = toObj objective
         (cnstrs,rhs) = toConstraints constraints varRange
         xbnds = toBounds bounds varRange
@@ -169,13 +181,20 @@ solLP (objective, constraints, bounds, varRange) params = withEnv $ \env -> do
       Left msg -> error $ "CPXsolution error: " ++ msg
       Right sol -> return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) (VS.convert $ solX sol) (VS.convert $ solPi sol)
 
-solMIP :: MixedIntegerProblem Int -> ParamValues -> CallBacks -> IO MIPSolution
-solMIP (objective, constraints, bounds, types, varRange) params (ActiveCallBacks {..})  = withEnv $ \env -> do
+solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks -> IO MIPSolution
+solMIP (MILP (objective_, constraints_, bounds_, types_) ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "clu" $ \lp -> do
     let
+        dic = generateVarDic constraints_
+        objective = tokenizeObj objective_ dic
+        constraints = tokenizeConstraints constraints_ dic
+        bounds = tokenizeBounds bounds_ dic
+        types = tokenizeTypes types_ dic
+        varRange = (0,M.size dic)
+
         (varA, varB) = varRange
         varCount = varB - varA + 1
         (objsen, obj) = toObj objective
@@ -225,3 +244,36 @@ typeToCPX :: LSolver.Bindings.Type -> CPLEX.Core.Type
 typeToCPX (TInteger) = CPX_INTEGER
 typeToCPX (TContinuous) = CPX_CONTINUOUS
 typeToCPX (TBinary) = CPX_BINARY
+
+
+
+
+generateVarDic :: (Eq a, Ord a) => Constraints a -> M.Map a Int
+generateVarDic (Sparse bounds) = foldr addBoundToDic M.empty bounds
+  where
+    addToDic (d :# v) m = M.insertWith (\new old -> old) v (M.size m) m
+    addBoundToDic (vs :< _ ) m = foldr addToDic m vs 
+    addBoundToDic (vs :> _ ) m = foldr addToDic m vs 
+    addBoundToDic (vs := _ ) m = foldr addToDic m vs 
+
+-- Change variables in bound to have ID
+tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
+tokenizeConstraints (Sparse bounds) dic = Sparse $ map b2b bounds
+  where
+    v2v (d :# v) = d :# (dic M.! v)
+    b2b (vs :< d) = map v2v vs :< d
+    b2b (vs :> d) = map v2v vs :> d
+    b2b (vs := d) = map v2v vs := d
+
+tokenizeObj :: (Ord a, Eq a) => Optimization a -> M.Map a Int -> Optimization Int 
+tokenizeObj obj dic = o2o obj
+  where
+    v2v (d :# v) = d :# (dic M.! v)
+    o2o (Minimize vs) = Minimize $ map v2v vs
+    o2o (Maximize vs) = Maximize $ map v2v vs
+
+tokenizeBounds :: (Ord a, Eq a) => [(a,b,b)] -> M.Map a Int -> [(Int,b,b)]
+tokenizeBounds xs dic = map (\(a,b,c) -> (dic M.! a, b, c)  ) xs
+
+tokenizeTypes :: (Ord a, Eq a) => [(a,b)] -> M.Map a Int -> [(Int, b)]
+tokenizeTypes xs dic = map (\(a,b) -> (dic M.! a, b)  ) xs

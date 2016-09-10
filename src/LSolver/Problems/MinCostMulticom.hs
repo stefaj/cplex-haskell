@@ -19,7 +19,7 @@ generateLinearProblem edges costs capacity commodities demand =
         edgeCapacity = genEdgeCapacity edges capacity
         objFunc = genObjectiveFunction pathsAll edgeCosts
         constraints = genConstraints pathsAll pathsCom edges edgeCapacity demand
-    in (objFunc, constraints, standardBounds varRange, varRange)
+    in LP (objFunc, constraints, standardBounds varRange)
 
 loadFromFile :: String -> IO (LinearProblem Int)
 loadFromFile fileName = do
@@ -27,8 +27,9 @@ loadFromFile fileName = do
     let [n, e, cost, cap, k, d] = lines $ contents :: [String]
     return $ generateLinearProblem (read e) (read cost) (read cap) (read k) (read d)
 
-genObjectiveFunction pathsAll edgeCosts = Minimize $ V.toList $ (\p -> sum $
-                    (\a -> edgeCosts M.! a) <$> p) <$> pathsAll
+genObjectiveFunction pathsAll edgeCosts = Minimize $ zipWith (:#) (V.toList $ (\p -> sum $
+                    (\a -> edgeCosts M.! a) <$> p) <$> pathsAll) [0..]
+
 genEdgeCosts edges costs = M.fromList $ zip edges costs
 genEdgeCapacity edges capacity = M.fromList $ zip edges capacity
 genPaths adj commodities =
