@@ -24,7 +24,7 @@ data Type = TContinuous | TInteger | TBinary
 instance (Show a) => Show (Variable a) where
     show (d :# v)
       | d == (-1) = "-x" ++ (show v)
-      | d == 1 = "x" ++ (show v)
+      | d == 1 = (show v)
       | otherwise = (show d) ++ "x" ++ (show v)
 
 instance Show a => Show (Optimization a) where
@@ -55,7 +55,7 @@ newtype LinearProblem a = LP ( Optimization a, Constraints a, [(a, Maybe Double,
 newtype MixedIntegerProblem a = MILP ( Optimization a, Constraints a, [(a, Maybe Double, Maybe Double)],
                                     [(a,Type)] )
 
-data MIPSolution = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: V.Vector Double} deriving (Show)
+data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: M.Map a Double } deriving (Show)
 
-data LPSolution = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: V.Vector Double, lpDualVars :: V.Vector Double} deriving (Show)
+data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: M.Map a Double, lpDualVars :: V.Vector Double} deriving (Show)
 
