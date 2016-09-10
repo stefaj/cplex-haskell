@@ -15,11 +15,11 @@ data Bound x =  x :< Double
              |  x := Double
              deriving Show
 
-data Constraints a = Sparse [ Bound [Variable a] ]
+newtype Constraints a = Constraints [ Bound [Variable a] ]
 
 instance Monoid a => Monoid (Constraints a) where
-  (Sparse xs) `mappend` (Sparse ys) = Sparse $ xs <> ys
-  mempty = Sparse []
+  (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
+  mempty = Constraints []
 
 
 data Optimization a = Maximize [Variable a]
@@ -40,7 +40,7 @@ instance Show a => Show (Optimization a) where
 showVars xs = intercalate " + " $ map show $ zipWith (:#) xs [0..]
 
 instance (Show a) => Show (Constraints a) where
-    show (Sparse bounds) = "\nSubject to\n" ++ (unlines $  map (\a -> "\t" ++ a) $ 
+    show (Constraints bounds) = "\nSubject to\n" ++ (unlines $  map (\a -> "\t" ++ a) $ 
                             map getVarSigns bounds)
 
 printVars xs = intercalate " + " $ map show xs

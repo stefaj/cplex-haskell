@@ -129,12 +129,12 @@ toConstraints constraints varRange = let (st, rhs) = toStandard constraints 0 []
 
 toStandard :: Ix a => Constraints a -> Int -> [(Row, Col, Double)] -> [Sense] -> (a, a)
                     -> ([(Row, Col, Double)], [Sense])
-toStandard (Sparse []) _ accSt accRhs _ = (reverse $ accSt, reverse $ accRhs)
-toStandard (Sparse (b:bs)) rowI accSt accRhs varRange = case b of
+toStandard (Constraints []) _ accSt accRhs _ = (reverse $ accSt, reverse $ accRhs)
+toStandard (Constraints (b:bs)) rowI accSt accRhs varRange = case b of
         vars :< boundVal -> addRow vars L boundVal
         vars := boundVal -> addRow vars E boundVal
         vars :> boundVal -> addRow vars G boundVal
-    where   addRow vars s boundVal = toStandard (Sparse bs) (rowI+1) (generateRow vars ++ accSt)
+    where   addRow vars s boundVal = toStandard (Constraints bs) (rowI+1) (generateRow vars ++ accSt)
                                                 ((s boundVal) : accRhs) varRange
             generateRow [] = []
             generateRow ((v :# i):vs) = (Row rowI, Col $ I.index varRange i, v):generateRow vs
@@ -257,7 +257,7 @@ typeToCPX (TBinary) = CPX_BINARY
 
 
 generateVarDic :: (Eq a, Ord a) => Constraints a -> M.Map a Int
-generateVarDic (Sparse bounds) = foldr addBoundToDic M.empty bounds
+generateVarDic (Constraints bounds) = foldr addBoundToDic M.empty bounds
   where
     addToDic (d :# v) m = M.insertWith (\new old -> old) v (M.size m) m
     addBoundToDic (vs :< _ ) m = foldr addToDic m vs 
@@ -266,7 +266,7 @@ generateVarDic (Sparse bounds) = foldr addBoundToDic M.empty bounds
 
 -- Change variables in bound to have ID
 tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
-tokenizeConstraints (Sparse bounds) dic = Sparse $ map b2b bounds
+tokenizeConstraints (Constraints bounds) dic = Constraints $ map b2b bounds
   where
     v2v (d :# v) = d :# (dic M.! v)
     b2b (vs :< d) = map v2v vs :< d

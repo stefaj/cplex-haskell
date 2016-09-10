@@ -8,7 +8,7 @@ data Vars = X
 
 main = do
   let obj = Maximize [ 3 :# X, 1 :# Y]
-  let cons :: Constraints Vars = Sparse [ 
+  let cons = Constraints [ 
                                             [1 :# X, 1 :# Y] :< 3,
                                             [1 :# Y] :> 1
                                          ]

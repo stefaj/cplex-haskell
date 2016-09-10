@@ -16,7 +16,7 @@ objF :: Optimization Int
 objF = Maximize [1 :# 0 , 2 :# 1, 3 :# 2]
 
 st :: Constraints Int
-st = Sparse [
+st = Constraints [
                 [(-1):#1, 1:#2, 1:#3] :< 20,
                 [1:#1, (-3):#2, 1:#3] :< 30
             ]
@@ -35,12 +35,12 @@ toBounds bounds varRange = F.toList $ aux bounds def
 
 toConstraints constraints varRange = let (st, rhs) = toStandard constraints 0 [] [] varRange
     in (st, V.fromList rhs)
-toStandard (Sparse []) _ accSt accRhs varRange = (reverse $ accSt, reverse $ accRhs)
-toStandard (Sparse (b:bs)) rowI accSt accRhs varRange = case b of
+toStandard (Constraints []) _ accSt accRhs varRange = (reverse $ accSt, reverse $ accRhs)
+toStandard (Constraints (b:bs)) rowI accSt accRhs varRange = case b of
         vars :< boundVal -> addRow vars L boundVal
         vars := boundVal -> addRow vars E boundVal
         vars :> boundVal -> addRow vars G boundVal
-    where   addRow vars s boundVal = toStandard (Sparse bs) (rowI+1) (generateRow vars ++ accSt)
+    where   addRow vars s boundVal = toStandard (Constraints bs) (rowI+1) (generateRow vars ++ accSt)
                                                 ((s boundVal) : accRhs) varRange
             generateRow [] = []
             generateRow ((v :# i):vs) = (Row rowI, Col $ I.index varRange i, v):generateRow vs

@@ -38,7 +38,7 @@ genPaths adj commodities =
     in (pathsAll, pathsCom)
 
 genConstraints pathsAll pathsCom edges edgeCapacity demand =
-    Sparse $ (genConstraints1 pathsCom pathsAll) ++ (genConstraints2 pathsAll edges)
+    Constraints $ (genConstraints1 pathsCom pathsAll) ++ (genConstraints2 pathsAll edges)
     where
         genConstraints1 pathsCom pathsAll = zipWith (:=) (createOneArrs pathsCom pathsAll) demand
 
