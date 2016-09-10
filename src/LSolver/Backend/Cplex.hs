@@ -149,7 +149,7 @@ varsToVector :: [Variable Int] -> V.Vector Double
 varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i) -> (i,c)) vs
 
 
-solLP :: (Eq a, Ord a) => LinearProblem a -> ParamValues -> IO LPSolution
+solLP :: (Eq a, Ord a) => LinearProblem a -> ParamValues -> IO (LPSolution a)
 solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
@@ -157,6 +157,7 @@ solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
   withLp env "testprob" $ \lp -> do
     let
         dic = generateVarDic constraints_
+        revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
         bounds = tokenizeBounds bounds_ dic
@@ -179,9 +180,12 @@ solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
     statusSol <- getSolution env lp
     case statusSol of
       Left msg -> error $ "CPXsolution error: " ++ msg
-      Right sol -> return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) (VS.convert $ solX sol) (VS.convert $ solPi sol)
+      Right sol -> do 
+          let vars = V.toList $ VS.convert $ solX sol 
+          let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
+          return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
 
-solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks -> IO MIPSolution
+solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks -> IO (MIPSolution a)
 solMIP (MILP (objective_, constraints_, bounds_, types_) ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
@@ -189,6 +193,7 @@ solMIP (MILP (objective_, constraints_, bounds_, types_) ) params (ActiveCallBac
   withLp env "clu" $ \lp -> do
     let
         dic = generateVarDic constraints_
+        revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
         bounds = tokenizeBounds bounds_ dic
@@ -238,7 +243,10 @@ solMIP (MILP (objective_, constraints_, bounds_, types_) ) params (ActiveCallBac
     statusSol <- getMIPSolution env lp
     case statusSol of
       Left msg -> error $ "CPXsolution error: " ++ msg
-      Right sol -> return $ MIPSolution (solStat sol == CPXMIP_OPTIMAL) (solObj sol) (VS.convert $ solX sol)
+      Right sol -> do -- I call this imperative do notation 
+          let vars = V.toList $ VS.convert $ solX sol 
+          let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
+          return $ MIPSolution (solStat sol == CPXMIP_OPTIMAL) (solObj sol) m 
        
 typeToCPX :: LSolver.Bindings.Type -> CPLEX.Core.Type 
 typeToCPX (TInteger) = CPX_INTEGER

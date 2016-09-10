@@ -7,9 +7,12 @@ data Vars = X
   deriving (Ord, Eq, Show)
 
 main = do
-  let obj = Maximize [3,2]
-  let cons :: Constraints Vars = Sparse [ [ 1 :# X ] :< 3, [ 1 :# Y] :< 2 ]
-  let prob = (obj, cons, [], (0,1))
+  let obj = Maximize [ 3 :# X, 1 :# Y]
+  let cons :: Constraints Vars = Sparse [ 
+                                            [1 :# X, 1 :# Y] :< 3,
+                                            [1 :# Y] :> 1
+                                         ]
+  let prob = LP (obj, cons, [])
   print cons
   ans <- solLP prob []
   print ans
