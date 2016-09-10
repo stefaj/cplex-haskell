@@ -6,6 +6,7 @@ module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(.
 import Data.List (intercalate)
 import qualified Data.Vector as V
 import qualified Data.Map as M
+import Data.Monoid
 
 data Variable a = Double :# a
 
@@ -15,6 +16,11 @@ data Bound x =  x :< Double
              deriving Show
 
 data Constraints a = Sparse [ Bound [Variable a] ]
+
+instance Monoid a => Monoid (Constraints a) where
+  (Sparse xs) `mappend` (Sparse ys) = Sparse $ xs <> ys
+  mempty = Sparse []
+
 
 data Optimization a = Maximize [Variable a]
                     | Minimize [Variable a]
