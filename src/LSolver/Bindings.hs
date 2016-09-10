@@ -29,7 +29,7 @@ data Type = TContinuous | TInteger | TBinary
 
 instance (Show a) => Show (Variable a) where
     show (d :# v)
-      | d == (-1) = "-x" ++ (show v)
+      | d == (-1) = "-" ++ (show v)
       | d == 1 = (show v)
       | otherwise = (show d) ++ "x" ++ (show v)
 
