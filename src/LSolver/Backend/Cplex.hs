@@ -198,7 +198,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         constraints = tokenizeConstraints constraints_ dic
         bounds = tokenizeBounds bounds_ dic
         types = tokenizeTypes types_ dic
-        varRange = (0,M.size dic)
+        varRange = (0,M.size dic - 1)
 
         (varA, varB) = varRange
         varCount = varB - varA + 1
@@ -207,7 +207,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         xbnds = toBounds bounds varRange
         
         types' = V.fromList (replicate varCount CPX_CONTINUOUS) V.// (map (\(a,t) -> (a, typeToCPX t)) types)
-
+    
     statusLp <- copyMip env lp objsen obj rhs cnstrs (V.fromList xbnds) types' 
 
     case statusLp of
