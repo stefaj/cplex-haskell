@@ -19,7 +19,7 @@ generateLinearProblem edges costs capacity commodities demand =
         edgeCapacity = genEdgeCapacity edges capacity
         objFunc = genObjectiveFunction pathsAll edgeCosts
         constraints = genConstraints pathsAll pathsCom edges edgeCapacity demand
-    in LP (objFunc, constraints, standardBounds varRange)
+    in LP objFunc constraints (standardBounds varRange)
 
 loadFromFile :: String -> IO (LinearProblem Int)
 loadFromFile fileName = do

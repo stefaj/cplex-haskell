@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(..),
+module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(..), (<+>),
             Bounds(..), Type(..), MixedIntegerProblem(..), LinearProblem(..), MIPSolution(..), LPSolution(..)) where
 
 import Data.List (intercalate)
@@ -21,6 +21,7 @@ instance Monoid a => Monoid (Constraints a) where
   (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
   mempty = Constraints []
 
+Constraints v1 <+> Constraints v2 = Constraints $ v1 ++ v2
 
 data Optimization a = Maximize [Variable a]
                     | Minimize [Variable a]
@@ -56,10 +57,10 @@ instance Show Type where
 
 type Bounds = [Bound Int]
 
-newtype LinearProblem a = LP ( Optimization a, Constraints a, [(a, Maybe Double, Maybe Double)] )
+data LinearProblem a = LP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
 
-newtype MixedIntegerProblem a = MILP ( Optimization a, Constraints a, [(a, Maybe Double, Maybe Double)],
-                                    [(a,Type)] )
+data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
+                                    [(a,Type)] 
 
 data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: M.Map a Double } deriving (Show)
 

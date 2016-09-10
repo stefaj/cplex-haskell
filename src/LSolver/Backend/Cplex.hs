@@ -150,7 +150,7 @@ varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i)
 
 
 solLP :: (Eq a, Ord a) => LinearProblem a -> ParamValues -> IO (LPSolution a)
-solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
+solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
@@ -186,7 +186,7 @@ solLP (LP (objective_, constraints_, bounds_) ) params = withEnv $ \env -> do
           return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
 
 solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks -> IO (MIPSolution a)
-solMIP (MILP (objective_, constraints_, bounds_, types_) ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
+solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
