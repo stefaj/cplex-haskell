@@ -58,9 +58,11 @@ instance Show Type where
 type Bounds = [Bound Int]
 
 data LinearProblem a = LP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
+    deriving Show
 
 data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
                                     [(a,Type)] 
+     deriving Show
 
 data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: M.Map a Double } deriving (Show)
 
