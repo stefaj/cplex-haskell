@@ -156,7 +156,7 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "testprob" $ \lp -> do
     let
-        dic = generateVarDic constraints_
+        dic = generateVarDic constraints_ objective_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
@@ -192,7 +192,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "clu" $ \lp -> do
     let
-        dic = generateVarDic constraints_
+        dic = generateVarDic constraints_ objective_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
@@ -256,13 +256,15 @@ typeToCPX (TBinary) = CPX_BINARY
 
 
 
-generateVarDic :: (Eq a, Ord a) => Constraints a -> M.Map a Int
-generateVarDic (Constraints bounds) = foldr addBoundToDic M.empty bounds
+generateVarDic :: (Eq a, Ord a) => Constraints a -> Optimization a -> M.Map a Int
+generateVarDic (Constraints bounds) opt = foldr addToDic (foldr addBoundToDic M.empty bounds) (getOptim opt)
   where
     addToDic (d :# v) m = M.insertWith (\new old -> old) v (M.size m) m
     addBoundToDic (vs :< _ ) m = foldr addToDic m vs 
     addBoundToDic (vs :> _ ) m = foldr addToDic m vs 
     addBoundToDic (vs := _ ) m = foldr addToDic m vs 
+    getOptim (Maximize a) = a
+    getOptim (Minimize a) = a
 
 -- Change variables in bound to have ID
 tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
