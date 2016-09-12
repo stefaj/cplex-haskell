@@ -156,7 +156,7 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "testprob" $ \lp -> do
     let
-        dic = generateVarDic constraints_ objective_
+        dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
@@ -192,7 +192,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "clu" $ \lp -> do
     let
-        dic = generateVarDic constraints_ objective_
+        dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
@@ -208,7 +208,19 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         
         types' = V.fromList (replicate varCount CPX_CONTINUOUS) V.// (map (\(a,t) -> (a, typeToCPX t)) types)
     
+    putStrLn "Where is the fault?"
+    putStrLn "Objective:"
+    print objective
+    putStrLn "Constraints:"
+    print constraints
+    putStrLn "Bounds:"
+    print bounds
+    putStrLn "Types:"
+    print types
+    print varRange
+    putStrLn "Copying MIP over"
     statusLp <- copyMip env lp objsen obj rhs cnstrs (V.fromList xbnds) types' 
+    putStrLn "Copied MIP over"
 
     case statusLp of
       Nothing -> return ()
@@ -235,12 +247,15 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
                             Just msg -> error $ "CPXCutCallBackSet Error: " ++ msg
         Nothing -> return ()
 
+    putStrLn "Solving"
     statusOpt <- mipopt env lp
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXmipopt error: " ++ msg
 
+    putStrLn "Getting solution"
     statusSol <- getMIPSolution env lp
+    putStrLn "Reversing vars"
     case statusSol of
       Left msg -> error $ "CPXsolution error: " ++ msg
       Right sol -> do -- I call this imperative do notation 
@@ -256,15 +271,18 @@ typeToCPX (TBinary) = CPX_BINARY
 
 
 
-generateVarDic :: (Eq a, Ord a) => Constraints a -> Optimization a -> M.Map a Int
-generateVarDic (Constraints bounds) opt = foldr addToDic (foldr addBoundToDic M.empty bounds) (getOptim opt)
+generateVarDic :: (Eq a, Ord a) => Constraints a -> Optimization a -> [(a, Maybe Double, Maybe Double)]
+                                    -> M.Map a Int
+generateVarDic (Constraints bounds) opt bs = foldr addToDic_ (foldr addToDic (foldr addBoundToDic M.empty bounds) (getOptim opt)) (map fst' bs)
   where
+    addToDic_ (v) m = M.insertWith (\new old -> old) v (M.size m) m
     addToDic (d :# v) m = M.insertWith (\new old -> old) v (M.size m) m
     addBoundToDic (vs :< _ ) m = foldr addToDic m vs 
     addBoundToDic (vs :> _ ) m = foldr addToDic m vs 
     addBoundToDic (vs := _ ) m = foldr addToDic m vs 
     getOptim (Maximize a) = a
     getOptim (Minimize a) = a
+    fst' (a,b,c) = a
 
 -- Change variables in bound to have ID
 tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
