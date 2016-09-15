@@ -26,13 +26,14 @@ import Data.Ord (comparing)
 
 data CallBacks a = ActiveCallBacks {cutcb :: Maybe (UserCutCallBack a), inccb :: Maybe (UserIncumbentCallBack),
                                   lazycb :: Maybe (UserCutCallBack a) }
-defaultCallBacks :: CallBacks ()
+defaultCallBacks :: CallBacks a
 defaultCallBacks = ActiveCallBacks {cutcb = Nothing, inccb = Nothing, lazycb = Nothing}
 
 type ParamValues = [(CPX_PARAM, Int)]
 
 type VarDic a = M.Map a Int 
-data CutCallBackArgs a = CutCallBackArgs {env :: CpxEnv, cbdata :: Ptr (), wherefrom :: CInt, cbhandle :: Ptr (), userdata :: Ptr Int, vardic :: VarDic a} 
+type RevDic a = M.Map Int a
+data CutCallBackArgs a = CutCallBackArgs {env :: CpxEnv, cbdata :: Ptr (), wherefrom :: CInt, cbhandle :: Ptr (), userdata :: Ptr Int, vardic :: VarDic a, revdic :: RevDic a} 
 type CutCallBackM b a = (ReaderT (CutCallBackArgs b) IO a) 
 type UserCutCallBack a = CutCallBackM a Int 
 
@@ -59,15 +60,15 @@ incumbentcallback usercb env' cbdata wherefrom cbhandle objVal xs isfeas useract
     return 0
 
 
-cutcallback :: (Ord a, Eq a) => VarDic a -> UserCutCallBack a -> CCutCallback
-cutcallback vardic usercb env' cbdata wherefrom cbhandle ptrUser = do
+cutcallback :: (Ord a, Eq a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
+cutcallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
-    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic
+    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
 
-lazycallback :: (Ord a, Eq a) => VarDic a -> UserCutCallBack a -> CCutCallback
-lazycallback vardic usercb env' cbdata wherefrom cbhandle ptrUser = do
+lazycallback :: (Ord a, Eq a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
+lazycallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
-    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic
+    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
 
 
 getCallBackLp :: (Eq a, Ord a) => CutCallBackM a CpxLp
@@ -91,7 +92,7 @@ getIncCallBackXs = do
               Left msg -> return $ V.empty
     return xs'
 
-getCallBackXs :: (Ord a, Eq a) => CutCallBackM a (V.Vector Double)
+getCallBackXs :: (Ord a, Eq a) => CutCallBackM a (M.Map a Double)
 getCallBackXs = do
     CutCallBackArgs{..} <- ask
   
@@ -102,7 +103,9 @@ getCallBackXs = do
                   (stat, xsVS) <- liftIO $ getCallbackNodeX env cbdata (fromIntegral wherefrom) 0 (colCount-1)
                   return $ VS.convert xsVS
               Left msg -> return $ V.empty
-    return xs'
+    let vars = V.toList xs'
+    let m = M.fromList $ zip (map (revdic M.!) [0..length vars - 1]) vars
+    return m
 
 addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
 addCallBackCut st_ = do
@@ -225,14 +228,14 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         Nothing -> return ()
     
     case lazycb of 
-        Just cb -> do   statusLazyCB <- setLazyConstraintCallback env (lazycallback dic cb)
+        Just cb -> do   statusLazyCB <- setLazyConstraintCallback env (lazycallback dic revDic cb)
                         case statusLazyCB of
                             Nothing -> return ()
                             Just msg -> error $ "CPXLazyConstraintCallBackSet Error: " ++ msg
         Nothing -> return ()
 
     case cutcb of 
-        Just cb -> do   statusCutCB <- setCutCallback env (cutcallback dic cb)
+        Just cb -> do   statusCutCB <- setCutCallback env (cutcallback dic revDic cb)
                         case statusCutCB of
                             Nothing -> return ()
                             Just msg -> error $ "CPXCutCallBackSet Error: " ++ msg
