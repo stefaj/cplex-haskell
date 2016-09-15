@@ -24,15 +24,17 @@ import qualified Data.Map as M
 import Data.List (sortBy)
 import Data.Ord (comparing)
 
-data CallBacks = ActiveCallBacks {cutcb :: Maybe UserCutCallBack, inccb :: Maybe UserIncumbentCallBack,
-                                  lazycb :: Maybe UserCutCallBack}
+data CallBacks a = ActiveCallBacks {cutcb :: Maybe (UserCutCallBack a), inccb :: Maybe (UserIncumbentCallBack),
+                                  lazycb :: Maybe (UserCutCallBack a) }
+defaultCallBacks :: CallBacks ()
 defaultCallBacks = ActiveCallBacks {cutcb = Nothing, inccb = Nothing, lazycb = Nothing}
 
 type ParamValues = [(CPX_PARAM, Int)]
 
-data CutCallBackArgs = CutCallBackArgs {env :: CpxEnv, cbdata :: Ptr (), wherefrom :: CInt, cbhandle :: Ptr (), userdata :: Ptr Int} 
-type CutCallBackM a = (ReaderT CutCallBackArgs IO a) 
-type UserCutCallBack = CutCallBackM Int 
+type VarDic a = M.Map a Int 
+data CutCallBackArgs a = CutCallBackArgs {env :: CpxEnv, cbdata :: Ptr (), wherefrom :: CInt, cbhandle :: Ptr (), userdata :: Ptr Int, vardic :: VarDic a} 
+type CutCallBackM b a = (ReaderT (CutCallBackArgs b) IO a) 
+type UserCutCallBack a = CutCallBackM a Int 
 
 data IncumbentCallBackArgs = IncumbentCallBackArgs {envi :: CpxEnv, cbdatai :: Ptr (), wherefromi :: CInt, cbhandlei :: Ptr (),
                                                     objVal :: CDouble, xs :: Ptr CDouble, isfeas :: Ptr Int , useraction :: Ptr Int} 
@@ -57,18 +59,18 @@ incumbentcallback usercb env' cbdata wherefrom cbhandle objVal xs isfeas useract
     return 0
 
 
-cutcallback :: UserCutCallBack -> CCutCallback
-cutcallback usercb env' cbdata wherefrom cbhandle ptrUser = do
+cutcallback :: (Ord a, Eq a) => VarDic a -> UserCutCallBack a -> CCutCallback
+cutcallback vardic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
-    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser
+    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic
 
-lazycallback :: UserCutCallBack -> CCutCallback
-lazycallback usercb env' cbdata wherefrom cbhandle ptrUser = do
+lazycallback :: (Ord a, Eq a) => VarDic a -> UserCutCallBack a -> CCutCallback
+lazycallback vardic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
-    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser
+    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic
 
 
-getCallBackLp :: CutCallBackM CpxLp
+getCallBackLp :: (Eq a, Ord a) => CutCallBackM a CpxLp
 getCallBackLp = do
   CutCallBackArgs{..} <- ask
   res <- liftIO $ getCallbackLP env cbdata (fromIntegral wherefrom)
@@ -89,7 +91,7 @@ getIncCallBackXs = do
               Left msg -> return $ V.empty
     return xs'
 
-getCallBackXs :: CutCallBackM (V.Vector Double)
+getCallBackXs :: (Ord a, Eq a) => CutCallBackM a (V.Vector Double)
 getCallBackXs = do
     CutCallBackArgs{..} <- ask
   
@@ -102,9 +104,10 @@ getCallBackXs = do
               Left msg -> return $ V.empty
     return xs'
 
-addCallBackCut :: Bound [Variable Int] -> CutCallBackM (Maybe String)
-addCallBackCut st = do
+addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
+addCallBackCut st_ = do
     CutCallBackArgs{..} <- ask
+    let st = tokenizeVars st_ vardic
     let (cnstrs,rhs) = toForm st
     liftIO $ addCutFromCallback env cbdata wherefrom (fromIntegral $ length cnstrs) rhs cnstrs CPX_USECUT_FORCE
   where
@@ -185,7 +188,7 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
           let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
           return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
 
-solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks -> IO (MIPSolution a)
+solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
 solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
@@ -208,19 +211,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         
         types' = V.fromList (replicate varCount CPX_CONTINUOUS) V.// (map (\(a,t) -> (a, typeToCPX t)) types)
     
-    putStrLn "Where is the fault?"
-    putStrLn "Objective:"
-    print objective
-    putStrLn "Constraints:"
-    print constraints
-    putStrLn "Bounds:"
-    print bounds
-    putStrLn "Types:"
-    print types
-    print varRange
-    putStrLn "Copying MIP over"
     statusLp <- copyMip env lp objsen obj rhs cnstrs (V.fromList xbnds) types' 
-    putStrLn "Copied MIP over"
 
     case statusLp of
       Nothing -> return ()
@@ -234,28 +225,25 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         Nothing -> return ()
     
     case lazycb of 
-        Just cb -> do   statusLazyCB <- setLazyConstraintCallback env (lazycallback cb)
+        Just cb -> do   statusLazyCB <- setLazyConstraintCallback env (lazycallback dic cb)
                         case statusLazyCB of
                             Nothing -> return ()
                             Just msg -> error $ "CPXLazyConstraintCallBackSet Error: " ++ msg
         Nothing -> return ()
 
     case cutcb of 
-        Just cb -> do   statusCutCB <- setCutCallback env (cutcallback cb)
+        Just cb -> do   statusCutCB <- setCutCallback env (cutcallback dic cb)
                         case statusCutCB of
                             Nothing -> return ()
                             Just msg -> error $ "CPXCutCallBackSet Error: " ++ msg
         Nothing -> return ()
 
-    putStrLn "Solving"
     statusOpt <- mipopt env lp
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXmipopt error: " ++ msg
 
-    putStrLn "Getting solution"
     statusSol <- getMIPSolution env lp
-    putStrLn "Reversing vars"
     case statusSol of
       Left msg -> error $ "CPXsolution error: " ++ msg
       Right sol -> do -- I call this imperative do notation 
@@ -272,7 +260,7 @@ typeToCPX (TBinary) = CPX_BINARY
 
 
 generateVarDic :: (Eq a, Ord a) => Constraints a -> Optimization a -> [(a, Maybe Double, Maybe Double)]
-                                    -> M.Map a Int
+                                    -> VarDic a
 generateVarDic (Constraints bounds) opt bs = foldr addToDic_ (foldr addToDic (foldr addBoundToDic M.empty bounds) (getOptim opt)) (map fst' bs)
   where
     addToDic_ (v) m = M.insertWith (\new old -> old) v (M.size m) m
@@ -287,6 +275,14 @@ generateVarDic (Constraints bounds) opt bs = foldr addToDic_ (foldr addToDic (fo
 -- Change variables in bound to have ID
 tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
 tokenizeConstraints (Constraints bounds) dic = Constraints $ map b2b bounds
+  where
+    v2v (d :# v) = d :# (dic M.! v)
+    b2b (vs :< d) = map v2v vs :< d
+    b2b (vs :> d) = map v2v vs :> d
+    b2b (vs := d) = map v2v vs := d
+
+tokenizeVars :: (Ord a, Eq a) => Bound [Variable a] -> M.Map a Int -> Bound [Variable Int]
+tokenizeVars bounds dic = b2b bounds
   where
     v2v (d :# v) = d :# (dic M.! v)
     b2b (vs :< d) = map v2v vs :< d
