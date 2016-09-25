@@ -29,8 +29,6 @@ module CPLEX.Core ( CpxEnv(..)
              , dualopt
              , siftopt
              , hybnetopt
-             , getSolution
-             , getMIPSolution
              , writeprob
                -- * change things
              , changeCoefList
@@ -56,6 +54,9 @@ module CPLEX.Core ( CpxEnv(..)
              , getCallbackNodeX
              , addCutFromCallback
              , addSingleMIPStart
+             , getSolution
+             , getMIPSolution
+             , getMipRelGap
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -332,6 +333,15 @@ getMIPSolution' env@(CpxEnv env') lp@(CpxLp lp') = do
             k -> fmap Left (getErrorString env (CpxRet k))
         k -> fmap Left (getErrorString env (CpxRet k))
     k -> fmap Left (getErrorString env (CpxRet k))
+
+
+getMipRelGap :: CpxEnv -> CpxLp -> IO Double
+getMipRelGap env@(CpxEnv env') lp@(CpxLp lp') = do
+  objval' <- malloc
+  status <- c_CPXgetmiprelgap env' lp' objval'
+  objVal <- peek objval'
+  free objval'
+  return $ realToFrac objVal
 
 writeprob :: CpxEnv -> CpxLp -> String -> IO (Maybe String)
 writeprob env@(CpxEnv env') lp@(CpxLp lp') filename = do

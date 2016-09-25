@@ -1,8 +1,10 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs,
-                              addCallBackCut, UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
+module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
+                             ,addCallBackCut 
+                             ,getCallBackGap 
+                             ,UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
 
 import Data.Ix as I
 import qualified Data.Vector as V
@@ -107,6 +109,13 @@ getCallBackXs = do
     let m = M.fromList $ zip (map (revdic M.!) [0..length vars - 1]) vars
     return m
 
+getCallBackGap :: (Ord a, Eq a) => CutCallBackM a Double
+getCallBackGap = do
+    CutCallBackArgs{..} <- ask
+    Right lp <- liftIO $ getCallbackLP env cbdata (fromIntegral wherefrom)
+    gap <- liftIO $ getMipRelGap env lp 
+    return gap
+
 addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
 addCallBackCut st_ = do
     CutCallBackArgs{..} <- ask
@@ -167,7 +176,10 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
         objective = tokenizeObj objective_ dic
         constraints = tokenizeConstraints constraints_ dic
         bounds = tokenizeBounds bounds_ dic
-        varRange = (0,M.size dic)
+        varRange = (0,M.size dic - 1)
+
+        (varA, varB) = varRange
+        varCount = varB - varA + 1
         (objsen, obj) = toObj objective
         (cnstrs,rhs) = toConstraints constraints varRange
         xbnds = toBounds bounds varRange

@@ -52,6 +52,8 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXsetincumbentcallbackfunc
                       , c_CPXsetcutcallbackfunc
                       , c_CPXsetlazyconstraintcallbackfunc
+                      -- More MIP
+                      , c_CPXgetmiprelgap
                       -- MIP cuts
                       , c_CPXaddmipstarts 
                       , c_CPXcutcallbackadd
@@ -300,4 +302,5 @@ foreign import ccall "wrapper"
     c_createCutCallbackPtr :: CCutCallback -> IO (FunPtr (CCutCallback))
 --int CPXsetincumbentcallbackfunc(CPXENVptr env, int(*)(CALLBACK_INCUMBENT_ARGS) incumbentcallback, void * cbhandle)
 
-
+foreign import ccall safe "cplex.h CPXgetmiprelgap" c_CPXgetmiprelgap ::
+    Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> IO CInt 
