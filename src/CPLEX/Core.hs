@@ -58,6 +58,7 @@ module CPLEX.Core ( CpxEnv(..)
              , getSolution
              , getMIPSolution
              , getMipRelGap
+             , getMipBestInteger 
                -- * convenience wrappers
              , withEnv
              , withLp
@@ -341,6 +342,14 @@ getMipRelGap :: CpxEnv -> Ptr () -> CInt -> IO Double
 getMipRelGap (CpxEnv env') cbdata wherefrom = do
   gap_p :: Ptr CDouble <- malloc
   status <- c_CPXgetcallbackinfo env' cbdata wherefrom 125 (unsafeCoerce gap_p)
+  objVal :: CDouble <- peek gap_p 
+  free gap_p
+  return $ if status == 0 then realToFrac objVal else fromIntegral status
+
+getMipBestInteger :: CpxEnv -> Ptr () -> CInt -> IO Double
+getMipBestInteger (CpxEnv env') cbdata wherefrom = do
+  gap_p :: Ptr CDouble <- malloc
+  status <- c_CPXgetcallbackinfo env' cbdata wherefrom 101 (unsafeCoerce gap_p)
   objVal :: CDouble <- peek gap_p 
   free gap_p
   return $ if status == 0 then realToFrac objVal else fromIntegral status

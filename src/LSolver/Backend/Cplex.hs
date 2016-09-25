@@ -4,6 +4,7 @@
 module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
                              ,addCallBackCut 
                              ,getCallBackGap 
+                             ,getCallBackBestObjI 
                              ,UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
 
 import Data.Ix as I
@@ -113,6 +114,12 @@ getCallBackGap :: (Ord a, Eq a) => CutCallBackM a Double
 getCallBackGap = do
     CutCallBackArgs{..} <- ask
     gap <- liftIO $ getMipRelGap env cbdata wherefrom 
+    return gap
+
+getCallBackBestObjI :: (Ord a, Eq a) => CutCallBackM a Double
+getCallBackBestObjI = do
+    CutCallBackArgs{..} <- ask
+    gap <- liftIO $ getMipBestInteger env cbdata wherefrom 
     return gap
 
 addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
