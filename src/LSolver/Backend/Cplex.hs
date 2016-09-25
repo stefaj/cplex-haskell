@@ -112,8 +112,7 @@ getCallBackXs = do
 getCallBackGap :: (Ord a, Eq a) => CutCallBackM a Double
 getCallBackGap = do
     CutCallBackArgs{..} <- ask
-    Right lp <- liftIO $ getCallbackLP env cbdata (fromIntegral wherefrom)
-    gap <- liftIO $ getMipRelGap env lp 
+    gap <- liftIO $ getMipRelGap env cbdata wherefrom 
     return gap
 
 addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)

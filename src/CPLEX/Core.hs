@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module CPLEX.Core ( CpxEnv(..)
              , CpxLp
@@ -80,6 +81,7 @@ import           Control.Applicative
 import           CPLEX.Bindings
 import           CPLEX.Param
 import           Data.Char(ord)
+import           Unsafe.Coerce
 
 newtype CpxEnv = CpxEnv (Ptr CpxEnv')
 newtype CpxLp = CpxLp (Ptr CpxLp')
@@ -335,13 +337,13 @@ getMIPSolution' env@(CpxEnv env') lp@(CpxLp lp') = do
     k -> fmap Left (getErrorString env (CpxRet k))
 
 
-getMipRelGap :: CpxEnv -> CpxLp -> IO Double
-getMipRelGap env@(CpxEnv env') lp@(CpxLp lp') = do
-  objval' <- malloc
-  status <- c_CPXgetmiprelgap env' lp' objval'
-  objVal <- peek objval'
-  free objval'
-  return $ realToFrac objVal
+getMipRelGap :: CpxEnv -> Ptr () -> CInt -> IO Double
+getMipRelGap (CpxEnv env') cbdata wherefrom = do
+  gap_p :: Ptr CDouble <- malloc
+  status <- c_CPXgetcallbackinfo env' cbdata wherefrom 125 (unsafeCoerce gap_p)
+  objVal :: CDouble <- peek gap_p 
+  free gap_p
+  return $ if status == 0 then realToFrac objVal else fromIntegral status
 
 writeprob :: CpxEnv -> CpxLp -> String -> IO (Maybe String)
 writeprob env@(CpxEnv env') lp@(CpxLp lp') filename = do

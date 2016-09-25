@@ -61,6 +61,7 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXaddlazyconstraints
                       , c_CPXgetcallbacknodex
                       , c_CPXgetcallbacknodelp
+                      , c_CPXgetcallbackinfo 
                       ) where
 
 import           Foreign.C   (CChar (..), CDouble (..), CInt (..))
@@ -226,6 +227,11 @@ foreign import ccall safe "cplex.h CPXwriteprob" c_CPXwriteprob ::
 --int CPXgetcallbacknodelp(CPXCENVptr env, void * cbdata, int wherefrom, CPXLPptr * nodelp_p)
 foreign import ccall safe "cplex.h CPXgetcallbacknodelp" c_CPXgetcallbacknodelp ::
     Ptr CpxEnv' -> Ptr () -> CInt -> Ptr (Ptr CpxLp') -> IO CInt
+
+--int CPXXgetcallbackinfo( CPXCENVptr env, void * cbdata, int wherefrom, int
+--whichinfo, void * result_p )
+foreign import ccall safe "cplex.h CPXgetcallbackinfo" c_CPXgetcallbackinfo ::
+    Ptr CpxEnv' -> Ptr () -> CInt -> CInt -> Ptr () -> IO CInt
 
 --int CPXgetcallbacknodex(CPXCENVptr env, void * cbdata, int wherefrom, double * x, int begin, int end)
 foreign import ccall safe "cplex.h CPXgetcallbacknodex" c_CPXgetcallbacknodex ::
