@@ -23,9 +23,13 @@ import Foreign.Storable
 import Foreign.C
 import Control.Monad
 import Control.Monad.Reader
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as M
+import Data.Hashable
 import Data.List (sortBy)
 import Data.Ord (comparing)
+
+
+type Map k v = M.HashMap k v
 
 data CallBacks a = ActiveCallBacks {cutcb :: Maybe (UserCutCallBack a), inccb :: Maybe (UserIncumbentCallBack),
                                   lazycb :: Maybe (UserCutCallBack a) }
@@ -34,8 +38,8 @@ defaultCallBacks = ActiveCallBacks {cutcb = Nothing, inccb = Nothing, lazycb = N
 
 type ParamValues = [(CPX_PARAM, Int)]
 
-type VarDic a = M.Map a Int 
-type RevDic a = M.Map Int a
+type VarDic a = Map a Int 
+type RevDic a = Map Int a
 data CutCallBackArgs a = CutCallBackArgs {env :: CpxEnv, cbdata :: Ptr (), wherefrom :: CInt, cbhandle :: Ptr (), userdata :: Ptr Int, vardic :: VarDic a, revdic :: RevDic a} 
 type CutCallBackM b a = (ReaderT (CutCallBackArgs b) IO a) 
 type UserCutCallBack a = CutCallBackM a Int 
@@ -63,18 +67,18 @@ incumbentcallback usercb env' cbdata wherefrom cbhandle objVal xs isfeas useract
     return 0
 
 
-cutcallback :: (Ord a, Eq a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
+cutcallback :: (Eq a, Hashable a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
 cutcallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
     runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
 
-lazycallback :: (Ord a, Eq a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
+lazycallback :: (Eq a, Hashable a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
 lazycallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
     runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
 
 
-getCallBackLp :: (Eq a, Ord a) => CutCallBackM a CpxLp
+getCallBackLp :: (Eq a, Hashable a) => CutCallBackM a CpxLp
 getCallBackLp = do
   CutCallBackArgs{..} <- ask
   res <- liftIO $ getCallbackLP env cbdata (fromIntegral wherefrom)
@@ -95,7 +99,7 @@ getIncCallBackXs = do
               Left msg -> return $ V.empty
     return xs'
 
-getCallBackXs :: (Ord a, Eq a) => CutCallBackM a (M.Map a Double)
+getCallBackXs :: (Eq a, Hashable a) => CutCallBackM a (Map a Double)
 getCallBackXs = do
     CutCallBackArgs{..} <- ask
   
@@ -110,19 +114,19 @@ getCallBackXs = do
     let m = M.fromList $ zip (map (revdic M.!) [0..length vars - 1]) vars
     return m
 
-getCallBackGap :: (Ord a, Eq a) => CutCallBackM a Double
+getCallBackGap :: (Eq a, Hashable a) => CutCallBackM a Double
 getCallBackGap = do
     CutCallBackArgs{..} <- ask
     gap <- liftIO $ getMipRelGap env cbdata wherefrom 
     return gap
 
-getCallBackBestObjI :: (Ord a, Eq a) => CutCallBackM a Double
+getCallBackBestObjI :: (Eq a, Hashable a) => CutCallBackM a Double
 getCallBackBestObjI = do
     CutCallBackArgs{..} <- ask
     gap <- liftIO $ getMipBestInteger env cbdata wherefrom 
     return gap
 
-addCallBackCut :: (Eq a, Ord a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
+addCallBackCut :: (Eq a, Hashable a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
 addCallBackCut st_ = do
     CutCallBackArgs{..} <- ask
     let st = tokenizeVars st_ vardic
@@ -170,7 +174,7 @@ varsToVector :: [Variable Int] -> V.Vector Double
 varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i) -> (i,c)) vs
 
 
-solLP :: (Eq a, Ord a) => LinearProblem a -> ParamValues -> IO (LPSolution a)
+solLP :: (Eq a, Hashable a) => LinearProblem a -> ParamValues -> IO (LPSolution a)
 solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
@@ -209,7 +213,7 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
           let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
           return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
 
-solMIP :: (Ord a, Eq a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
+solMIP :: (Eq a, Hashable a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
 solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
@@ -280,21 +284,26 @@ typeToCPX (TBinary) = CPX_BINARY
 
 
 
-generateVarDic :: (Eq a, Ord a) => Constraints a -> Optimization a -> [(a, Maybe Double, Maybe Double)]
+generateVarDic :: (Eq a, Hashable a) => Constraints a -> Optimization a -> [(a, Maybe Double, Maybe Double)]
                                     -> VarDic a
-generateVarDic (Constraints bounds) opt bs = foldr addToDic_ (foldr addToDic (foldr addBoundToDic M.empty bounds) (getOptim opt)) (map fst' bs)
+generateVarDic (Constraints bounds) opt bs = let allvars = (concat $ map getBounds bounds) ++ (getOptim opt) ++ (map fst' bs)
+                                             in go allvars 0 M.empty
   where
-    addToDic_ (v) m = M.insertWith (\new old -> old) v (M.size m) m
-    addToDic (d :# v) m = M.insertWith (\new old -> old) v (M.size m) m
-    addBoundToDic (vs :< _ ) m = foldr addToDic m vs 
-    addBoundToDic (vs :> _ ) m = foldr addToDic m vs 
-    addBoundToDic (vs := _ ) m = foldr addToDic m vs 
-    getOptim (Maximize a) = a
-    getOptim (Minimize a) = a
+    getVar (_ :# v) = v
+    getBounds (vs :< _ ) = map getVar vs
+    getBounds (vs :> _ ) = map getVar vs
+    getBounds (vs := _ ) = map getVar vs
+    getOptim (Maximize a) = map getVar a
+    getOptim (Minimize a) = map getVar a
     fst' (a,b,c) = a
+    go :: (Eq a, Hashable a) => [a] -> Int -> Map a Int -> Map a Int
+    go [] i m = m
+    go (v:vs) i m 
+      | v `M.member` m = go vs i m
+      | otherwise = go vs (i+1) $ M.insertWith (\new old -> old) v i m
 
 -- Change variables in bound to have ID
-tokenizeConstraints :: (Ord a, Eq a) => Constraints a -> M.Map a Int -> Constraints Int
+tokenizeConstraints :: (Eq a, Hashable a) => Constraints a -> Map a Int -> Constraints Int
 tokenizeConstraints (Constraints bounds) dic = Constraints $ map b2b bounds
   where
     v2v (d :# v) = d :# (dic M.! v)
@@ -302,7 +311,7 @@ tokenizeConstraints (Constraints bounds) dic = Constraints $ map b2b bounds
     b2b (vs :> d) = map v2v vs :> d
     b2b (vs := d) = map v2v vs := d
 
-tokenizeVars :: (Ord a, Eq a) => Bound [Variable a] -> M.Map a Int -> Bound [Variable Int]
+tokenizeVars :: (Eq a, Hashable a) => Bound [Variable a] -> Map a Int -> Bound [Variable Int]
 tokenizeVars bounds dic = b2b bounds
   where
     v2v (d :# v) = d :# (dic M.! v)
@@ -310,15 +319,15 @@ tokenizeVars bounds dic = b2b bounds
     b2b (vs :> d) = map v2v vs :> d
     b2b (vs := d) = map v2v vs := d
 
-tokenizeObj :: (Ord a, Eq a) => Optimization a -> M.Map a Int -> Optimization Int 
+tokenizeObj :: (Eq a, Hashable a) => Optimization a -> Map a Int -> Optimization Int 
 tokenizeObj obj dic = o2o obj
   where
     v2v (d :# v) = d :# (dic M.! v)
     o2o (Minimize vs) = Minimize $ map v2v vs
     o2o (Maximize vs) = Maximize $ map v2v vs
 
-tokenizeBounds :: (Ord a, Eq a) => [(a,b,b)] -> M.Map a Int -> [(Int,b,b)]
+tokenizeBounds :: (Eq a, Hashable a) => [(a,b,b)] -> Map a Int -> [(Int,b,b)]
 tokenizeBounds xs dic = map (\(a,b,c) -> (dic M.! a, b, c)  ) xs
 
-tokenizeTypes :: (Ord a, Eq a) => [(a,b)] -> M.Map a Int -> [(Int, b)]
+tokenizeTypes :: (Eq a, Hashable a) => [(a,b)] -> Map a Int -> [(Int, b)]
 tokenizeTypes xs dic = map (\(a,b) -> (dic M.! a, b)  ) xs

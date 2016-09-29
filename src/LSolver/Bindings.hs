@@ -5,8 +5,11 @@ module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(.
 
 import Data.List (intercalate)
 import qualified Data.Vector as V
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as M
+import Data.Hashable
 import Data.Monoid
+
+type Map k v = M.HashMap k v
 
 data Variable a = Double :# a
 
@@ -64,7 +67,7 @@ data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Do
                                     [(a,Type)] 
      deriving Show
 
-data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: M.Map a Double } deriving (Show)
+data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: Map a Double } deriving (Show)
 
-data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: M.Map a Double, lpDualVars :: V.Vector Double} deriving (Show)
+data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: Map a Double, lpDualVars :: V.Vector Double} deriving (Show)
 
