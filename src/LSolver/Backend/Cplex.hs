@@ -7,7 +7,6 @@ module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, ge
                              ,getCallBackBestObjI 
                              ,UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
 
-import Data.Ix as I
 import qualified Data.Vector as V
 import qualified Data.Sequence as S
 import Data.Foldable as F
@@ -137,22 +136,20 @@ addCallBackCut st_ = do
     toForm (vars :> b) = (map (\(v :# i) -> (Col i, v)) vars, G b)  
     toForm (vars := b) = (map (\(v :# i) -> (Col i, v)) vars, E b) 
 
-standardBounds :: (Enum t, Num a) => (t, t) -> [(t, Maybe a, Maybe a1)]
-standardBounds (i,j) = map (\i' -> (i', Just 0, Nothing)) [i..j]
+standardBounds :: (Int, Int) -> [(Int, Maybe Double, Maybe Double)]
+standardBounds (i,j) = [(i',Just 0, Nothing) | i' <- [i..j] ]
 
-toBounds :: (Num a, Ix t) => [(t, Maybe a, Maybe a1)] -> (t, t) -> [(Maybe a, Maybe a1)]
-toBounds bounds varRange = F.toList $ aux bounds def
+toBounds :: [(Int, Maybe Double, Maybe Double)] -> (Int, Int) -> V.Vector (Maybe Double, Maybe Double)
+toBounds bounds vr@(a,b) = def V.// (map (\(q,w,e) -> (q,(w,e))) bounds)
     where
-        def = S.fromList [k | _ <- I.range varRange, let k = (Just 0, Nothing)]
-        aux [] s = s
-        aux ((b,lb,ub):bs) s = aux bs (S.update (I.index varRange b) (lb,ub) s)
+        def = V.fromList [k | _ <- [a..b], let k = (Just 0, Nothing)]
 
-toConstraints :: Ix a => Constraints a -> (a, a) -> ([(Row, Col, Double)], V.Vector Sense)
+toConstraints :: Constraints Int -> (Int, Int) -> ([(Row, Col, Double)], V.Vector Sense)
 toConstraints constraints varRange = let (st, rhs) = toStandard constraints 0 [] [] varRange
     in (st, V.fromList rhs)
 
 
-toStandard :: Ix a => Constraints a -> Int -> [(Row, Col, Double)] -> [Sense] -> (a, a)
+toStandard :: Constraints Int -> Int -> [(Row, Col, Double)] -> [Sense] -> (Int, Int)
                     -> ([(Row, Col, Double)], [Sense])
 toStandard (Constraints []) _ accSt accRhs _ = (reverse $ accSt, reverse $ accRhs)
 toStandard (Constraints (b:bs)) rowI accSt accRhs varRange = case b of
@@ -162,7 +159,7 @@ toStandard (Constraints (b:bs)) rowI accSt accRhs varRange = case b of
     where   addRow vars s boundVal = toStandard (Constraints bs) (rowI+1) (generateRow vars ++ accSt)
                                                 ((s boundVal) : accRhs) varRange
             generateRow [] = []
-            generateRow ((v :# i):vs) = (Row rowI, Col $ I.index varRange i, v):generateRow vs
+            generateRow ((v :# i):vs) = (Row rowI, Col i, v):generateRow vs
 
 
 toObj :: Optimization Int -> (ObjSense, V.Vector Double)
@@ -194,7 +191,7 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
         (cnstrs,rhs) = toConstraints constraints varRange
         xbnds = toBounds bounds varRange
    
-    statusLp <- copyLp env lp objsen obj rhs cnstrs (V.fromList xbnds)
+    statusLp <- copyLp env lp objsen obj rhs cnstrs xbnds
 
     case statusLp of
       Nothing -> return ()
@@ -236,7 +233,7 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
         
         types' = V.fromList (replicate varCount CPX_CONTINUOUS) V.// (map (\(a,t) -> (a, typeToCPX t)) types)
     
-    statusLp <- copyMip env lp objsen obj rhs cnstrs (V.fromList xbnds) types' 
+    statusLp <- copyMip env lp objsen obj rhs cnstrs xbnds types' 
 
     case statusLp of
       Nothing -> return ()
