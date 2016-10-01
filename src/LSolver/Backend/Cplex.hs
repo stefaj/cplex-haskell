@@ -8,8 +8,6 @@ module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, ge
                              ,UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
 
 import qualified Data.Vector as V
-import qualified Data.Sequence as S
-import Data.Foldable as F
 import CPLEX.Bindings
 import CPLEX.Param
 import CPLEX.Core hiding (Bound)
@@ -211,7 +209,9 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
           return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
 
 solMIP :: (Eq a, Hashable a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
-solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
+solMIP = solMIP' M.empty
+solMIP' :: (Eq a, Hashable a) => Map a Double -> MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
+solMIP' warmStart (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
@@ -259,6 +259,11 @@ solMIP (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {.
                             Nothing -> return ()
                             Just msg -> error $ "CPXCutCallBackSet Error: " ++ msg
         Nothing -> return ()
+
+    let warmVars = M.toList warmStart
+    let warmInd = map (dic M.!) $ map fst warmVars
+    let warmVals = map snd warmVars
+    when (M.size warmStart > 0) $ addSingleMIPStart env lp warmInd warmVals CPX_MIPSTART_AUTO >> return ()
 
     statusOpt <- mipopt env lp
     case statusOpt of
