@@ -85,6 +85,7 @@ data CPX_PARAM = CPX_PARAM_ADVIND
                | CPX_PARAM_SOLUTIONTARGET
                | CPX_PARAM_CLONELOG
                | CPX_PARAM_MIPCBREDLP
+               | CPX_PARAM_MIPDISPLAY
                deriving Show
 
 paramToInt :: Num a => CPX_PARAM -> a
@@ -156,6 +157,7 @@ paramToInt CPX_PARAM_APIENCODING       = 1130
 paramToInt CPX_PARAM_SOLUTIONTARGET    = 1131
 paramToInt CPX_PARAM_CLONELOG          = 1132
 paramToInt CPX_PARAM_MIPCBREDLP        = 2055
+paramToInt CPX_PARAM_MIPDISPLAY        = 2012
 
 data CPX_PROB_TYPE = CPX_PROB_LP
                    | CPX_PROB_MILP
