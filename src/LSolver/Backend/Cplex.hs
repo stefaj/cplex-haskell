@@ -1,10 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module LSolver.Backend.Cplex(solLP, standardBounds, solMIP, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
+module LSolver.Backend.Cplex(solLP, standardBounds, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
                              ,addCallBackCut 
                              ,getCallBackGap 
                              ,getCallBackBestObjI 
+                             ,solMIP
+                             ,solMIP'
                              ,UserCutCallBack, CutCallBackM, UserIncumbentCallBack, IncumbentCallBackM, CallBacks(..)) where
 
 import qualified Data.Vector as V
