@@ -1,7 +1,18 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module LSolver.Bindings(Variable(..), Bound(..), Constraints(..), Optimization(..), (<+>),
-            Bounds(..), Type(..), MixedIntegerProblem(..), LinearProblem(..), MIPSolution(..), LPSolution(..)) where
+module LSolver.Bindings(Variable(..)
+                       ,Bound(..)
+                       ,Constraints(..)
+                       ,Optimization(..)
+                       ,(<+>)
+                       ,Bounds(..)
+                       ,Type(..)
+                       ,MixedIntegerProblem(..)
+                       ,LinearProblem(..)
+                       ,MIPSolution(..)
+                       ,LPSolution(..)
+                       ,simplifyConstraints
+                       ) where
 
 import Data.List (intercalate)
 import qualified Data.Vector as V
@@ -19,6 +30,16 @@ data Bound x =  x :< Double
              deriving Show
 
 newtype Constraints a = Constraints [ Bound [Variable a] ]
+
+simplifyVars :: (Eq a, Hashable a) => [Variable a] -> [Variable a]
+simplifyVars vars = map (\(v,c) -> c :# v) $ M.toList $ 
+                      foldr (\(c :# v) m -> M.insertWith (+) v c m) M.empty vars            
+simplifyBounds (xs :< b) = (simplifyVars xs) :< b
+simplifyBounds (xs := b) = (simplifyVars xs) := b
+simplifyBounds (xs :> b) = (simplifyVars xs) :> b
+
+simplifyConstraints :: (Eq a, Hashable a) => Constraints a -> Constraints a
+simplifyConstraints (Constraints cs) = Constraints $ map simplifyBounds cs
 
 instance Monoid a => Monoid (Constraints a) where
   (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
