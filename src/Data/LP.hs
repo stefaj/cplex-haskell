@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module LSolver.Bindings(Variable(..)
+module Data.LP(Variable(..)
                        ,Bound(..)
                        ,Constraints(..)
                        ,Optimization(..)

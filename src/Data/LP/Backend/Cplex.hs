@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module LSolver.Backend.Cplex(solLP, standardBounds, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
+module Data.LP.Backend.Cplex(solLP, standardBounds, defaultCallBacks, getCallBackLp, getIncCallBackXs, getCallBackXs
                              ,addCallBackCut 
                              ,getCallBackGap 
                              ,getCallBackBestObjI 
@@ -14,7 +14,7 @@ import CPLEX.Bindings
 import CPLEX.Param
 import CPLEX.Core hiding (Bound)
 --import Foreign.C (CInt)
-import LSolver.Bindings
+import Data.LP
 import qualified Data.Vector.Storable as VS
 import Foreign.Ptr
 import Foreign.ForeignPtr(newForeignPtr_)
@@ -280,7 +280,7 @@ solMIP' warmStart (MILP objective_ constraints_ bounds_ types_ ) params (ActiveC
           let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
           return $ MIPSolution (solStat sol == CPXMIP_OPTIMAL) (solObj sol) m 
        
-typeToCPX :: LSolver.Bindings.Type -> CPLEX.Core.Type 
+typeToCPX :: Data.LP.Type -> CPLEX.Core.Type 
 typeToCPX (TInteger) = CPX_INTEGER
 typeToCPX (TContinuous) = CPX_CONTINUOUS
 typeToCPX (TBinary) = CPX_BINARY

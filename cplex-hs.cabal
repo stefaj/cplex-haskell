@@ -1,5 +1,5 @@
 name:                cplex-hs
-version:             0.3.0.10
+version:             0.4.0.0
 synopsis:            high-level CPLEX interface
 -- description:
 License:             BSD3
@@ -21,10 +21,8 @@ Library
   exposed-modules:   CPLEX.Core,
                      CPLEX.Param
                      CPLEX.Bindings
-                     LSolver.Bindings
-                     LSolver.Dummy
-                     LSolver.Backend.Cplex
-                     LSolver.Problems.MinCostMulticom
+                     Data.LP
+                     Data.LP.Backend.Cplex
   -- other-modules:
   Build-depends:     base < 5.0
                    , unordered-containers == 0.2.7.1
