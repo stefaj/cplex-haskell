@@ -39,7 +39,12 @@ simplifyBounds (xs := b) = (simplifyVars xs) := b
 simplifyBounds (xs :> b) = (simplifyVars xs) :> b
 
 simplifyConstraints :: (Eq a, Hashable a) => Constraints a -> Constraints a
-simplifyConstraints (Constraints cs) = Constraints $ map simplifyBounds cs
+simplifyConstraints (Constraints cs) = Constraints $ map simplifyBounds $ filter isNonEmpty cs
+  where
+    isNonEmpty ([] :< b) = False
+    isNonEmpty ([] := b) = False
+    isNonEmpty ([] :> b) = False
+    isNonEmpty _ = True
 
 instance Monoid a => Monoid (Constraints a) where
   (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
