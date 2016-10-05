@@ -11,6 +11,7 @@ module Data.LP(Variable(..)
                        ,LinearProblem(..)
                        ,MIPSolution(..)
                        ,LPSolution(..)
+                       ,simplifyConstraints
                        ,removeEmptyConstraints
                        ) where
 
