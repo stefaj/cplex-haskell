@@ -11,7 +11,7 @@ module Data.LP(Variable(..)
                        ,LinearProblem(..)
                        ,MIPSolution(..)
                        ,LPSolution(..)
-                       ,simplifyConstraints
+                       ,removeEmptyConstraints
                        ) where
 
 import Data.List (intercalate)
@@ -39,7 +39,10 @@ simplifyBounds (xs := b) = (simplifyVars xs) := b
 simplifyBounds (xs :> b) = (simplifyVars xs) :> b
 
 simplifyConstraints :: (Eq a, Hashable a) => Constraints a -> Constraints a
-simplifyConstraints (Constraints cs) = Constraints $ map simplifyBounds $ filter isNonEmpty cs
+simplifyConstraints (Constraints cs) = Constraints $ map simplifyBounds cs 
+
+removeEmptyConstraints :: (Eq a, Hashable a) => Constraints a -> Constraints a
+removeEmptyConstraints (Constraints cs) = Constraints $ filter isNonEmpty cs
   where
     isNonEmpty ([] :< b) = False
     isNonEmpty ([] := b) = False
