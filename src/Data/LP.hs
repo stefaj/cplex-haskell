@@ -100,5 +100,5 @@ data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Do
 
 data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: Map a Double } deriving (Show)
 
-data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: Map a Double, lpDualVars :: V.Vector Double, lpBaseVars :: Maybe (S.HashSet a)} deriving (Show)
+data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: Map a Double, lpDualVars :: V.Vector Double, lpBasisVars :: Maybe (S.HashSet a)} deriving (Show)
 
