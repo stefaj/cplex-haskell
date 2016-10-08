@@ -20,6 +20,7 @@ import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as M
 import Data.Hashable
 import Data.Monoid
+import qualified Data.HashSet as S
 
 type Map k v = M.HashMap k v
 
@@ -99,5 +100,5 @@ data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Do
 
 data MIPSolution a = MIPSolution { mipOptimalSol :: Bool, mipObjVal :: Double, mipVars :: Map a Double } deriving (Show)
 
-data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: Map a Double, lpDualVars :: V.Vector Double} deriving (Show)
+data LPSolution a = LPSolution { lpOptimalSol :: Bool, lpObjVal :: Double, lpVars :: Map a Double, lpDualVars :: V.Vector Double, lpBaseVars :: Maybe (S.HashSet a)} deriving (Show)
 

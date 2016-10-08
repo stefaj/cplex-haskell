@@ -26,6 +26,7 @@ import qualified Data.HashMap.Strict as M
 import Data.Hashable
 import Data.List (sortBy)
 import Data.Ord (comparing)
+import qualified Data.HashSet as S
 
 
 type Map k v = M.HashMap k v
@@ -208,7 +209,9 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
       Right sol -> do 
           let vars = V.toList $ VS.convert $ solX sol 
           let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
-          return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol)
+          basism <- getBaseVars env lp
+          let basis' = basism >>= \basis -> Just $ S.fromList $ map (\(i,c) -> revDic M.! i) $ filter(\(i,c) -> c == 1) $  zip [0..] $ V.toList $ VS.convert basis
+          return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol) basis'
 
 solMIP :: (Eq a, Hashable a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
 solMIP = solMIP' M.empty
