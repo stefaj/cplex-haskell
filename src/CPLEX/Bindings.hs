@@ -29,6 +29,7 @@ module CPLEX.Bindings ( CpxEnv'
                       , c_CPXgetnumrows
                       , c_CPXgetobjval
                       , c_CPXgetx
+                      , c_CPXgetbase
                       , c_CPXgetstat
                       , c_CPXgetslack
                       , c_CPXcopylp
@@ -310,3 +311,6 @@ foreign import ccall "wrapper"
 
 foreign import ccall safe "cplex.h CPXgetmiprelgap" c_CPXgetmiprelgap ::
     Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CDouble -> IO CInt 
+
+foreign import ccall safe "cplex.h CPXgetbase" c_CPXgetbase ::
+    Ptr CpxEnv' -> Ptr CpxLp' -> Ptr CInt -> Ptr CInt -> IO CInt 

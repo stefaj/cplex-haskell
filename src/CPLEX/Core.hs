@@ -44,6 +44,7 @@ module CPLEX.Core ( CpxEnv(..)
              , getNumRows
              , getErrorString
              , getStatString
+             , getBaseVars
              -- MIP
              , setIncumbentCallback
              , setCutCallback
@@ -359,6 +360,18 @@ writeprob env@(CpxEnv env') lp@(CpxLp lp') filename = do
   fn <- newCAString filename 
   status <- c_CPXwriteprob env' lp' fn nullPtr
   getErrorStatus env status
+
+getBaseVars :: CpxEnv -> CpxLp -> IO (Maybe (Vector Int))
+getBaseVars env@(CpxEnv env') lp@(CpxLp lp') = do
+  numcols <- getNumCols env lp
+  x <- VSM.new numcols
+  VSM.unsafeWith x $ \x' -> do
+    status <- c_CPXgetbase  env' lp' x' nullPtr
+    case status of
+      0 -> do vec <- VS.freeze x
+              let vec' = VS.map fromIntegral vec
+              return $ Just $ vec'
+      _ -> return Nothing
 
 toCpxError :: CpxEnv -> CInt -> IO (Maybe String)
 toCpxError env 0 = return Nothing
