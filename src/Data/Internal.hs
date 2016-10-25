@@ -50,11 +50,6 @@ removeEmptyConstraints (Constraints cs) = Constraints $ filter isNonEmpty cs
     isNonEmpty ([] :> b) = False
     isNonEmpty _ = True
 
-instance Monoid a => Monoid (Constraints a) where
-  (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
-  mempty = Constraints []
-
-
 data Optimization a = Maximize [Variable a]
                     | Minimize [Variable a]
 

@@ -22,6 +22,7 @@ Library
                      CPLEX.Param,
                      CPLEX.Bindings,
                      Data.LP,
+                     Data.Internal,
                      Data.LP.Backend.Cplex
   -- other-modules:
   Build-depends:     base < 5.0

@@ -3,21 +3,19 @@
 
 module Data.LP( -- Variable(..)
                        Constraint(..)
+                       ,Constraints(..)
                        ,Algebra(..)
-                       -- ,(*)
+                       ,Optimization(..)
                        ,sum
                        ,forall
-                       -- ,I.Constraints(..)
-                       ,I.Optimization(..)
-                       ,I.Bounds(..)
                        ,I.Type(..)
                        ,MixedIntegerProblem(..)
                        ,LinearProblem(..)
                        ,I.MIPSolution(..)
                        ,I.LPSolution(..)
-                       -- ,I.simplifyConstraints
-                       -- ,I.removeEmptyConstraints
+                       ,simplify
                        ,buildConstraints
+                       ,buildObjective
                        ) where
 
 import Data.Monoid
@@ -32,16 +30,23 @@ data Algebra x = Constant Double
                | Double :* x
                | LinearCombination [Algebra x] 
 
+infixr 1 :<
+data Constraint x = Algebra x :< Algebra x
+                  | Algebra x := Algebra x
+                  | Algebra x :> Algebra x
+    deriving (Show)
+
 data Constraints x = Constraints [Constraint x]
 
-instance Monoid a => Monoid (Constraints a) where
-  (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
+instance Monoid (Constraints a) where
+  (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs ++ ys
   mempty = Constraints []
 
-instance Show x => Show (Algebra x) where
+instance (Eq x, Hashable x, Show x) => Show (Algebra x) where
   show (Constant d) = show d
   show (d :* x) = show d <> show x
-  show (LinearCombination xs) = intercalate " + " $ map show xs
+  show l = intercalate " + " $ map show xs
+    where LinearCombination xs = simplify l
 
 
 (*) :: Double -> x -> Algebra x
@@ -57,15 +62,12 @@ instance Num (Algebra x) where
   negate (d :* v) = (negate d) :* v
   negate (LinearCombination xs) = LinearCombination $ map negate xs
 
-infixr 1 :<
-data Constraint x = Algebra x :< Algebra x
-                  | Algebra x := Algebra x
-                  | Algebra x :> Algebra x
-    deriving (Show)
+data Optimization x = Maximize (Algebra x)
+                    | Minimize (Algebra x)
+  deriving (Show)
 
-
-
-sum xs f = P.sum $ flip map f xs
+sum :: [a] -> (a -> Algebra x) -> Algebra x
+sum xs f = P.sum $ map f xs
 
 forall = flip map
 
@@ -110,9 +112,22 @@ buildConstraint constr = case constr of
 buildConstraints :: (Eq x, Hashable x) => Constraints x -> I.Constraints x
 buildConstraints (Constraints constrs) = I.Constraints $ map buildConstraint constrs
 
-data LinearProblem a = LP (I.Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
+buildObjective :: forall x. (Eq x, Hashable x) => Optimization x -> I.Optimization x
+buildObjective inp = case inp of 
+                      Minimize _ -> I.Minimize obj
+                      Maximize _ -> I.Maximize obj
+  where
+    v = simplify (o)
+    vars :: [(x,Double)] = getVars v
+    obj :: [I.Variable x] = map (\(v,d) -> d I.:# v) vars
+    o = case inp of
+              Minimize vs -> vs
+              Maximize vs -> vs
+  
+
+data LinearProblem a = LP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
     -- deriving Show
 
-data MixedIntegerProblem a = MILP (I.Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
+data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
                                     [(a,I.Type)] 
     -- deriving Show

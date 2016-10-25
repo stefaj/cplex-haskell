@@ -47,8 +47,6 @@ data IncumbentCallBackArgs = IncumbentCallBackArgs {envi :: CpxEnv, cbdatai :: P
 type IncumbentCallBackM a = (ReaderT IncumbentCallBackArgs IO a) 
 type UserIncumbentCallBack = Double -> VS.Vector Double -> IncumbentCallBackM Bool
 
-
-
 incumbentcallback :: UserIncumbentCallBack -> CIncumbentCallback
 incumbentcallback usercb env' cbdata wherefrom cbhandle objVal xs isfeas useraction = do
     let env = CpxEnv env'
@@ -167,13 +165,14 @@ varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i)
 
 
 solLP :: (Eq a, Hashable a) => LP.LinearProblem a -> ParamValues -> IO (LPSolution a)
-solLP (LP.LP objective_ constraints__ bounds_) params = withEnv $ \env -> do
+solLP (LP.LP objective__ constraints__ bounds_) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "testprob" $ \lp -> do
     let
         constraints_ = LP.buildConstraints constraints__
+        objective_ = LP.buildObjective objective__
         dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
@@ -211,13 +210,14 @@ solLP (LP.LP objective_ constraints__ bounds_) params = withEnv $ \env -> do
 solMIP :: (Eq a, Hashable a) => LP.MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
 solMIP = solMIP' M.empty
 solMIP' :: (Eq a, Hashable a) => Map a Double -> LP.MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
-solMIP' warmStart (LP.MILP objective_ constraints__ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
+solMIP' warmStart (LP.MILP objective__ constraints__ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "clu" $ \lp -> do
     let
         constraints_ = LP.buildConstraints constraints__
+        objective_ = LP.buildObjective objective__
         dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
@@ -283,8 +283,6 @@ typeToCPX :: Data.Internal.Type -> CPLEX.Core.Type
 typeToCPX (TInteger) = CPX_INTEGER
 typeToCPX (TContinuous) = CPX_CONTINUOUS
 typeToCPX (TBinary) = CPX_BINARY
-
-
 
 
 generateVarDic :: (Eq a, Hashable a) => Constraints a -> Optimization a -> [(a, Maybe Double, Maybe Double)]
