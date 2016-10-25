@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Data.LP( -- Variable(..)
                        Constraint(..)
@@ -7,24 +9,30 @@ module Data.LP( -- Variable(..)
                        ,Algebra(..)
                        ,Optimization(..)
                        ,sum
+                       ,sumc
                        ,forall
                        ,I.Type(..)
                        ,MixedIntegerProblem(..)
                        ,LinearProblem(..)
                        ,I.MIPSolution(..)
                        ,I.LPSolution(..)
+                       ,Algabraic(..)
                        ,simplify
                        ,buildConstraints
                        ,buildObjective
+                       ,(+:)
                        ) where
 
 import Data.Monoid
 import Data.List (intercalate)
 import qualified Prelude as P
 import qualified Data.HashMap.Strict as M
+import qualified Prelude as P
 import Prelude hiding ((*), sum)
 import qualified Data.Internal as I
 import Data.Hashable
+import GHC.Generics
+import Unsafe.Coerce (unsafeCoerce)
 
 data Algebra x = Constant Double
                | Double :* x
@@ -71,6 +79,7 @@ sum :: [a] -> (a -> Algebra x) -> Algebra x
 sum xs f = P.sum $ map f xs
 
 forall = flip map
+sumc xs f = Constant $ P.sum $ map f xs
 
 simplify :: (Eq a, Hashable a) => Algebra a -> Algebra a
 simplify a@(Constant d) = a
@@ -132,3 +141,27 @@ data LinearProblem a = LP (Optimization a) (Constraints a) [(a, Maybe Double, Ma
 data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Double, Maybe Double)]
                                     [(a,I.Type)] 
     -- deriving Show
+
+
+
+class Algabraic a where
+  liftAlg :: a -> Algebra b   
+
+(+:) :: forall a b c. (Algabraic a, Algabraic b) => a -> b -> Algebra c
+a +: b = (liftAlg a :: Algebra c) + (liftAlg b :: Algebra c)
+
+data Var = X
+         | Y
+  deriving (Eq, Show)
+
+instance Generic Var
+
+instance Algabraic Double where
+  liftAlg d = Constant d
+instance Algabraic Float where
+  liftAlg d = Constant $ realToFrac d
+
+instance Algabraic (Algebra x) where
+  liftAlg a = unsafeCoerce a
+
+test1 = (1 :* X) +: (3.0 :: Float)
