@@ -54,6 +54,7 @@ a * b = a :* b
 
 instance Num (Algebra x) where
   fromInteger i = Constant $ fromIntegral i
+  (LinearCombination xs) + (LinearCombination ys) = LinearCombination $ xs ++ ys
   a1 + (LinearCombination xs) = LinearCombination (a1:xs)
   (LinearCombination xs) + a2 = LinearCombination (xs++[a2])
   (Constant a) + (Constant b) = Constant (a+b)
@@ -96,10 +97,10 @@ buildConstraint constr = case constr of
             (_ := _ ) -> lhs I.:= rhs
             (_ :> _ ) -> lhs I.:> rhs
   where
-    v = simplify (ol - or)
+    v = simplify (ol + (negate or) ) 
     vars :: [(x,Double)] = getVars v
     lhs :: [I.Variable x] = map (\(v,d) -> d I.:# v) vars
-    rhs = getConstant v
+    rhs = negate $ getConstant v
     ol = case constr of
             (a :< _) -> a
             (a := _) -> a
