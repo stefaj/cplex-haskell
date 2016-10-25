@@ -4,20 +4,19 @@
 module Data.LP( -- Variable(..)
                        Constraint(..)
                        ,Algebra(..)
-                       ,(*)
+                       -- ,(*)
                        ,sum
                        ,forall
-                       ,I.Constraints(..)
+                       -- ,I.Constraints(..)
                        ,I.Optimization(..)
-                       ,(<+>)
                        ,I.Bounds(..)
                        ,I.Type(..)
                        ,MixedIntegerProblem(..)
                        ,LinearProblem(..)
                        ,I.MIPSolution(..)
                        ,I.LPSolution(..)
-                       ,I.simplifyConstraints
-                       ,I.removeEmptyConstraints
+                       -- ,I.simplifyConstraints
+                       -- ,I.removeEmptyConstraints
                        ,buildConstraints
                        ) where
 
@@ -35,7 +34,9 @@ data Algebra x = Constant Double
 
 data Constraints x = Constraints [Constraint x]
 
-Constraints v1 <+> Constraints v2 = Constraints $ v1 ++ v2
+instance Monoid a => Monoid (Constraints a) where
+  (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs <> ys
+  mempty = Constraints []
 
 instance Show x => Show (Algebra x) where
   show (Constant d) = show d

@@ -1,7 +1,18 @@
 -- {-# LANGUAGE NoImplicitPrelude #-}
 -- import qualified Prelude as P
 
-module Data.Internal where
+module Data.Internal (
+    Map(..),
+    Variable(..),
+    Bound(..),
+    Bounds(..),
+    Constraints(..),
+    Optimization(..),
+    Type(..),
+    MIPSolution(..),
+    LPSolution(..),
+    )
+  where
 
 import Data.List (intercalate)
 import qualified Data.Vector as V
