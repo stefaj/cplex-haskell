@@ -118,10 +118,10 @@ getCallBackBestObjI = do
     gap <- liftIO $ getMipBestInteger env cbdata wherefrom 
     return gap
 
-addCallBackCut :: (Eq a, Hashable a) => Bound [Variable a] -> CutCallBackM a (Maybe String)
+addCallBackCut :: (Eq a, Hashable a) => LP.Constraint a -> CutCallBackM a (Maybe String)
 addCallBackCut st_ = do
     CutCallBackArgs{..} <- ask
-    let st = tokenizeVars st_ vardic
+    let st = tokenizeVars (LP.buildConstraint st_) vardic
     let (cnstrs,rhs) = toForm st
     liftIO $ addCutFromCallback env cbdata wherefrom (fromIntegral $ length cnstrs) rhs cnstrs CPX_USECUT_FORCE
   where

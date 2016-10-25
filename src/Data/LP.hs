@@ -18,6 +18,7 @@ module Data.LP( -- Variable(..)
                        ,I.LPSolution(..)
                        ,Algabraic(..)
                        ,simplify
+                       ,buildConstraint
                        ,buildConstraints
                        ,buildObjective
                        ,(+:)
