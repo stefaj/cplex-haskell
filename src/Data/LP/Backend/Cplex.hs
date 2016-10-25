@@ -14,7 +14,8 @@ import CPLEX.Bindings
 import CPLEX.Param
 import CPLEX.Core hiding (Bound)
 --import Foreign.C (CInt)
-import Data.LP
+import Data.Internal
+import qualified Data.LP as LP
 import qualified Data.Vector.Storable as VS
 import Foreign.Ptr
 import Foreign.ForeignPtr(newForeignPtr_)
@@ -27,9 +28,6 @@ import Data.Hashable
 import Data.List (sortBy)
 import Data.Ord (comparing)
 import qualified Data.HashSet as S
-
-
-type Map k v = M.HashMap k v
 
 data CallBacks a = ActiveCallBacks {cutcb :: Maybe (UserCutCallBack a), inccb :: Maybe (UserIncumbentCallBack),
                                   lazycb :: Maybe (UserCutCallBack a) }
@@ -66,17 +64,13 @@ incumbentcallback usercb env' cbdata wherefrom cbhandle objVal xs isfeas useract
     poke isfeas (if isFeas then 1 else 0) 
     return 0
 
-
-cutcallback :: (Eq a, Hashable a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
-cutcallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
-    let env = CpxEnv env'
-    runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
-
 lazycallback :: (Eq a, Hashable a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
 lazycallback vardic revdic usercb env' cbdata wherefrom cbhandle ptrUser = do
     let env = CpxEnv env'
     runReaderT usercb $ CutCallBackArgs env cbdata wherefrom cbhandle ptrUser vardic revdic
 
+cutcallback :: (Eq a, Hashable a) => VarDic a -> RevDic a -> UserCutCallBack a -> CCutCallback
+cutcallback = lazycallback
 
 getCallBackLp :: (Eq a, Hashable a) => CutCallBackM a CpxLp
 getCallBackLp = do
@@ -172,13 +166,14 @@ varsToVector :: [Variable Int] -> V.Vector Double
 varsToVector vs = V.fromList $ map snd $ sortBy (comparing fst) $ map (\(c :# i) -> (i,c)) vs
 
 
-solLP :: (Eq a, Hashable a) => LinearProblem a -> ParamValues -> IO (LPSolution a)
-solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
+solLP :: (Eq a, Hashable a) => LP.LinearProblem a -> ParamValues -> IO (LPSolution a)
+solLP (LP.LP objective_ constraints__ bounds_) params = withEnv $ \env -> do
   --setIntParam env CPX_PARAM_SCRIND cpx_ON
   --setIntParam env CPX_PARAM_DATACHECK cpx_ON
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "testprob" $ \lp -> do
     let
+        constraints_ = LP.buildConstraints constraints__
         dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
@@ -213,15 +208,16 @@ solLP (LP objective_ constraints_ bounds_) params = withEnv $ \env -> do
           let basis' = basism >>= \basis -> Just $ S.fromList $ map (\(i,c) -> revDic M.! i) $ filter(\(i,c) -> c == 1) $  zip [0..] $ V.toList $ VS.convert basis
           return $ LPSolution (solStat sol == CPX_STAT_OPTIMAL) (solObj sol) ( m ) (VS.convert $ solPi sol) basis'
 
-solMIP :: (Eq a, Hashable a) => MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
+solMIP :: (Eq a, Hashable a) => LP.MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
 solMIP = solMIP' M.empty
-solMIP' :: (Eq a, Hashable a) => Map a Double -> MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
-solMIP' warmStart (MILP objective_ constraints_ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
+solMIP' :: (Eq a, Hashable a) => Map a Double -> LP.MixedIntegerProblem a -> ParamValues -> CallBacks a -> IO (MIPSolution a)
+solMIP' warmStart (LP.MILP objective_ constraints__ bounds_ types_ ) params (ActiveCallBacks {..})  = withEnv $ \env -> do
 --  setIntParam env CPX_PARAM_SCRIND 1
  -- setIntParam env CPX_PARAM_DATACHECK 1 
   mapM_ (\(p,v) -> setIntParam env p (fromIntegral v)) params
   withLp env "clu" $ \lp -> do
     let
+        constraints_ = LP.buildConstraints constraints__
         dic = generateVarDic constraints_ objective_ bounds_
         revDic = M.fromList $ map (\(a,b) -> (b,a)) $ M.toList dic
         objective = tokenizeObj objective_ dic
@@ -283,7 +279,7 @@ solMIP' warmStart (MILP objective_ constraints_ bounds_ types_ ) params (ActiveC
           let m = M.fromList $ zip (map (revDic M.!) [0..length vars - 1]) vars
           return $ MIPSolution (solStat sol == CPXMIP_OPTIMAL) (solObj sol) m 
        
-typeToCPX :: Data.LP.Type -> CPLEX.Core.Type 
+typeToCPX :: Data.Internal.Type -> CPLEX.Core.Type 
 typeToCPX (TInteger) = CPX_INTEGER
 typeToCPX (TContinuous) = CPX_CONTINUOUS
 typeToCPX (TBinary) = CPX_BINARY
