@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Data.LP( -- Variable(..)
@@ -8,6 +9,9 @@ module Data.LP( -- Variable(..)
                        ,Constraints(..)
                        ,Algebra(..)
                        ,Optimization(..)
+                       ,(<:)
+                       ,(=:)
+                       ,(>:)
                        ,sum
                        ,sumc
                        ,forall
@@ -16,12 +20,10 @@ module Data.LP( -- Variable(..)
                        ,LinearProblem(..)
                        ,I.MIPSolution(..)
                        ,I.LPSolution(..)
-                       ,Algabraic(..)
                        ,simplify
                        ,buildConstraint
                        ,buildConstraints
                        ,buildObjective
-                       ,(+:)
                        ) where
 
 import Data.Monoid
@@ -145,24 +147,38 @@ data MixedIntegerProblem a = MILP (Optimization a) (Constraints a) [(a, Maybe Do
 
 
 
-class Algabraic a where
-  liftAlg :: a -> Algebra b   
-
-(+:) :: forall a b c. (Algabraic a, Algabraic b) => a -> b -> Algebra c
-a +: b = (liftAlg a :: Algebra c) + (liftAlg b :: Algebra c)
-
+-- class Algabraic a b | a -> b where
+--   liftAlg :: a -> Algebra b   
+-- 
+-- (+:) :: forall a b c. (Algabraic a, Algabraic b) => a -> b -> Algebra c
+-- a +: b = (liftAlg a :: Algebra c) + (liftAlg b :: Algebra c)
+-- 
 data Var = X
          | Y
   deriving (Eq, Show)
-
 instance Generic Var
+-- 
+-- instance forall b. Algabraic Double b where
+--   liftAlg d = (Constant d :: Algebra b)
+-- 
+-- -- instance Algabraic (Algebra x) where
+-- --   liftAlg a = unsafeCoerce a
+-- 
+-- test1 = (1 :* X) :< 3.0
+--
+class Constrainable a b c | a b -> c where
+  (<:) :: a -> b -> c
+  (>:) :: a -> b -> c
+  (=:) :: a -> b -> c
 
-instance Algabraic Double where
-  liftAlg d = Constant d
-instance Algabraic Float where
-  liftAlg d = Constant $ realToFrac d
+instance (Real a, Num a) => Constrainable (Algebra x) (a) (Constraint x) where
+  lhs <: rhs = lhs :< (Constant $ realToFrac rhs)
+  lhs >: rhs = lhs :> (Constant $ realToFrac rhs)
+  lhs =: rhs = lhs := (Constant $ realToFrac rhs)
 
-instance Algabraic (Algebra x) where
-  liftAlg a = unsafeCoerce a
+instance (Real a, Num a) => Constrainable a (Algebra x) (Constraint x) where
+  lhs <: rhs = (Constant $ realToFrac lhs) :< rhs
+  lhs >: rhs = (Constant $ realToFrac lhs) :> rhs
+  lhs =: rhs = (Constant $ realToFrac lhs) := rhs
 
-test1 = (1 :* X) +: (3.0 :: Float)
+test = 1 :* X <: (3.0 :: Double)
