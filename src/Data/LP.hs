@@ -59,10 +59,6 @@ instance (Eq x, Hashable x, Show x) => Show (Algebra x) where
   show l = intercalate " + " $ map show xs
     where LinearCombination xs = simplify l
 
-
-(*) :: Double -> x -> Algebra x
-a * b = a :* b
-
 instance Num (Algebra x) where
   fromInteger i = Constant $ fromIntegral i
   (LinearCombination xs) + (LinearCombination ys) = LinearCombination $ xs ++ ys
@@ -180,5 +176,19 @@ instance (Real a, Num a) => Constrainable a (Algebra x) (Constraint x) where
   lhs <: rhs = (Constant $ realToFrac lhs) :< rhs
   lhs >: rhs = (Constant $ realToFrac lhs) :> rhs
   lhs =: rhs = (Constant $ realToFrac lhs) := rhs
+
+class Mult a b c | a b -> c where
+  (*) :: a -> b -> c
+
+instance Mult Double Double Double where
+  a * b = a P.* b
+
+-- instance Mult a Double (Algebra a) where
+--   v * b = b :* v
+
+instance Mult (Algebra a) Double (Algebra a) where
+   (Constant c) * b = Constant (b P.* c)
+   (c :* x) * b = (c P.* b) :* x
+   (LinearCombination xs) * b = LinearCombination $ map (*b) xs 
 
 test = 1 :* X <: (3.0 :: Double)
