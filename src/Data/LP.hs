@@ -94,6 +94,7 @@ getConstant (LinearCombination xs) = P.sum $ map getConstant xs
 
 getVars :: Algebra x -> [(x,Double)]
 getVars (d :* v) = [(v,d)]
+getVars (Constant d) = []
 getVars (LinearCombination xs) = map aux $ filter (\u -> case u of
                                                                   d :* v -> True
                                                                   _ -> False) xs
