@@ -1,5 +1,5 @@
 name:                cplex-hs
-version:             0.5.0.1
+version:             0.5.0.2
 synopsis:            high-level CPLEX interface
 -- description:
 License:             BSD3

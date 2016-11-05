@@ -48,6 +48,7 @@ data Constraint x = Algebra x :< Algebra x
     deriving (Show)
 
 data Constraints x = Constraints [Constraint x]
+    deriving (Show)
 
 instance Monoid (Constraints a) where
   (Constraints xs) `mappend` (Constraints ys) = Constraints $ xs ++ ys
