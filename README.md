@@ -14,6 +14,9 @@ Includes:
  Constraints $ forall onus $ \j -> (sum splitters $ \i -> 1 :# (Phi i j) ) := 1
 ```
 
+## Installing on OSX
+To install on OSX with cplex in the standard install location, specify the extra-lib-dirs as: `cabal install cplex-hs --extra-lib-dirs=$HOME/Applications/IBM/ILOG/CPLEX_Studio1271/cplex/lib/x86-64_osx/static_pic/`
+
 ## Change Log
 * New MIP additions and callbacks
 * MIP additions by [herwigstuetz](https://github.com/herwigstuetz/cplex-haskell)
