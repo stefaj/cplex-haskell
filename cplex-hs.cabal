@@ -1,5 +1,5 @@
 name:                cplex-hs
-version:             0.5.0.2
+version:             0.5.0.3
 synopsis:            high-level CPLEX interface
 -- description:
 License:             BSD3
@@ -29,7 +29,7 @@ Library
                      Data.LP.Backend.Cplex
   -- other-modules:
   Build-depends:     base < 5.0
-                   , unordered-containers == 0.2.7.1
+                   , unordered-containers 
                    , hashable
                    , containers < 6.0
                    , mtl < 2.3

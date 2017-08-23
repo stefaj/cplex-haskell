@@ -2,9 +2,10 @@ with import <nixpkgs> { };
 
 haskell.lib.buildStackProject {
     name = "cplex-haskell";
-    ghc = haskell.packages.ghc801.ghc;
+    ghc = haskell.packages.ghc802.ghc;
     buildInputs = [ ncurses 
                     git 
+                    ghc
                     cabal-install  ]; 
 
     shellHook = ''
